@@ -15,6 +15,13 @@ spring:
           time_zone: UTC
   flyway:
     enabled: true
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # jwk-set-uri — lazy key fetch, no connection at startup.
+          # Composed from OIDC_ISSUER_URI so a single env var switches providers.
+          jwk-set-uri: ${OIDC_ISSUER_URI:http://localhost:8081/realms/reachsky}/protocol/openid-connect/certs
 
 management:
   endpoints:

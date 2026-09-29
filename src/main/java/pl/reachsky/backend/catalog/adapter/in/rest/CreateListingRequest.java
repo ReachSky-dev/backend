@@ -5,10 +5,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 import java.time.Instant;
-import java.util.UUID;
 
 public record CreateListingRequest(
-        @NotNull UUID sellerId,
         @NotBlank String title,
         String description,
         @NotNull Instant windowStart,

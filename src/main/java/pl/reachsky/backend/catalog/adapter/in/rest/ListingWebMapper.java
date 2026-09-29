@@ -5,12 +5,14 @@ import pl.reachsky.backend.catalog.application.port.in.CreateListingCommand;
 import pl.reachsky.backend.catalog.domain.Listing;
 import pl.reachsky.backend.catalog.domain.ResourceWindow;
 
+import java.util.UUID;
+
 @Component
 class ListingWebMapper {
 
-    CreateListingCommand toCommand(CreateListingRequest r) {
+    CreateListingCommand toCommand(CreateListingRequest r, UUID sellerId) {
         return new CreateListingCommand(
-                r.sellerId(),
+                sellerId,
                 r.title(),
                 r.description(),
                 new ResourceWindow(r.windowStart(), r.windowEnd()),

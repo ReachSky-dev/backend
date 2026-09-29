@@ -14,31 +14,36 @@ import pl.reachsky.backend.catalog.application.port.in.FindListingsQuery;
 import pl.reachsky.backend.catalog.application.port.in.PublishListingUseCase;
 import pl.reachsky.backend.catalog.domain.ListingId;
 import pl.reachsky.backend.catalog.domain.ListingStatus;
+import pl.reachsky.backend.shared.CurrentUserProvider;
 
 import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/listings")
+@RequestMapping("/api/listings")
 class ListingController {
 
     private final CreateListingUseCase create;
     private final PublishListingUseCase publish;
     private final FindListingsQuery find;
     private final ListingWebMapper mapper;
+    private final CurrentUserProvider currentUserProvider;
 
     ListingController(CreateListingUseCase create, PublishListingUseCase publish,
-                      FindListingsQuery find, ListingWebMapper mapper) {
+                      FindListingsQuery find, ListingWebMapper mapper,
+                      CurrentUserProvider currentUserProvider) {
         this.create = create;
         this.publish = publish;
         this.find = find;
         this.mapper = mapper;
+        this.currentUserProvider = currentUserProvider;
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     ListingResponse createListing(@Valid @RequestBody CreateListingRequest request) {
-        return mapper.toResponse(create.create(mapper.toCommand(request)));
+        UUID sellerId = currentUserProvider.get().id().value();
+        return mapper.toResponse(create.create(mapper.toCommand(request, sellerId)));
     }
 
     @PostMapping("/{id}/publish")
