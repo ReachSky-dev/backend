@@ -1,0 +1,270 @@
+{
+  "openapi" : "3.1.0",
+  "info" : {
+    "title" : "ReachSky API",
+    "description" : "Aukcje zasobów nietrwałych w czasie",
+    "version" : "0.0.1-SNAPSHOT"
+  },
+  "servers" : [ {
+    "url" : "http://localhost",
+    "description" : "Generated server url"
+  } ],
+  "paths" : {
+    "/api/listings" : {
+      "get" : {
+        "tags" : [ "listing-controller" ],
+        "summary" : "List all active listings",
+        "operationId" : "listActive",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/ListingResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "listing-controller" ],
+        "summary" : "Create a new listing",
+        "operationId" : "createListing",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateListingRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "401" : {
+            "description" : "Not authenticated",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ListingResponse"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "SELLER role required",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ListingResponse"
+                }
+              }
+            }
+          },
+          "201" : {
+            "description" : "Created",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ListingResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/listings/{id}/publish" : {
+      "post" : {
+        "tags" : [ "listing-controller" ],
+        "summary" : "Publish a DRAFT listing",
+        "operationId" : "publishListing",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "401" : {
+            "description" : "Not authenticated",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ListingResponse"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "SELLER role required",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ListingResponse"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "Listing is not in DRAFT state",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ListingResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/me" : {
+      "get" : {
+        "tags" : [ "me-controller" ],
+        "summary" : "Current authenticated user profile",
+        "operationId" : "getMe",
+        "responses" : {
+          "401" : {
+            "description" : "Not authenticated",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserProfileResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components" : {
+    "schemas" : {
+      "CreateListingRequest" : {
+        "type" : "object",
+        "properties" : {
+          "title" : {
+            "type" : "string",
+            "minLength" : 1
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "windowStart" : {
+            "type" : "string",
+            "format" : "date-time",
+            "description" : "ISO-8601 UTC instant, e.g. 2027-09-01T14:00:00Z"
+          },
+          "windowEnd" : {
+            "type" : "string",
+            "format" : "date-time",
+            "description" : "ISO-8601 UTC instant, e.g. 2027-09-03T10:00:00Z"
+          },
+          "capacity" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 1
+          }
+        },
+        "required" : [ "title", "windowEnd", "windowStart" ]
+      },
+      "ListingResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "sellerId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "windowStart" : {
+            "type" : "string",
+            "format" : "date-time",
+            "description" : "ISO-8601 UTC instant"
+          },
+          "windowEnd" : {
+            "type" : "string",
+            "format" : "date-time",
+            "description" : "ISO-8601 UTC instant"
+          },
+          "capacity" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "status" : {
+            "type" : "string",
+            "$ref" : "#/components/schemas/ListingStatus",
+            "enum" : [ "DRAFT", "ACTIVE", "CLOSED" ]
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
+      "UserProfileResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "username" : {
+            "type" : "string"
+          },
+          "roles" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            },
+            "uniqueItems" : true
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
+      "ListingStatus" : {
+        "type" : "string",
+        "enum" : [ "DRAFT", "ACTIVE", "CLOSED" ]
+      },
+      "ProblemDetail" : {
+        "properties" : {
+          "type" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "status" : {
+            "format" : "int32"
+          },
+          "detail" : {
+            "type" : "string"
+          },
+          "instance" : {
+            "type" : "string"
+          }
+        }
+      }
+    }
+  }
+}

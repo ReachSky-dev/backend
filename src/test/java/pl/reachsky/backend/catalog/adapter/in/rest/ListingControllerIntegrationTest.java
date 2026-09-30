@@ -16,6 +16,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.client.RestClient;
 import pl.reachsky.backend.AbstractIntegrationTest;
+import pl.reachsky.backend.catalog.domain.ListingStatus;
 import pl.reachsky.backend.shared.CurrentUser;
 import pl.reachsky.backend.shared.CurrentUserProvider;
 import pl.reachsky.backend.shared.UserId;
@@ -84,7 +85,7 @@ class ListingControllerIntegrationTest extends AbstractIntegrationTest {
 
         assertThat(response.getStatusCode().value()).isEqualTo(201);
         assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().status()).isEqualTo("DRAFT");
+        assertThat(response.getBody().status()).isEqualTo(ListingStatus.DRAFT);
         assertThat(response.getBody().id()).isNotNull();
     }
 
@@ -104,7 +105,7 @@ class ListingControllerIntegrationTest extends AbstractIntegrationTest {
                 .toEntity(ListingResponse.class);
 
         assertThat(published.getStatusCode().value()).isEqualTo(200);
-        assertThat(published.getBody().status()).isEqualTo("ACTIVE");
+        assertThat(published.getBody().status()).isEqualTo(ListingStatus.ACTIVE);
     }
 
     @Test
@@ -126,7 +127,7 @@ class ListingControllerIntegrationTest extends AbstractIntegrationTest {
                 .getBody();
 
         assertThat(listings).hasSize(1);
-        assertThat(listings[0].status()).isEqualTo("ACTIVE");
+        assertThat(listings[0].status()).isEqualTo(ListingStatus.ACTIVE);
     }
 
     @Test

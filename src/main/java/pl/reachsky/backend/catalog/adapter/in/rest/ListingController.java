@@ -1,5 +1,7 @@
 package pl.reachsky.backend.catalog.adapter.in.rest;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -41,17 +43,25 @@ class ListingController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Create a new listing")
+    @ApiResponse(responseCode = "401", description = "Not authenticated")
+    @ApiResponse(responseCode = "403", description = "SELLER role required")
     ListingResponse createListing(@Valid @RequestBody CreateListingRequest request) {
         UUID sellerId = currentUserProvider.get().id().value();
         return mapper.toResponse(create.create(mapper.toCommand(request, sellerId)));
     }
 
     @PostMapping("/{id}/publish")
+    @Operation(summary = "Publish a DRAFT listing")
+    @ApiResponse(responseCode = "401", description = "Not authenticated")
+    @ApiResponse(responseCode = "403", description = "SELLER role required")
+    @ApiResponse(responseCode = "409", description = "Listing is not in DRAFT state")
     ListingResponse publishListing(@PathVariable UUID id) {
         return mapper.toResponse(publish.publish(new ListingId(id)));
     }
 
     @GetMapping
+    @Operation(summary = "List all active listings")
     List<ListingResponse> listActive() {
         return find.findByStatus(ListingStatus.ACTIVE).stream()
                 .map(mapper::toResponse)

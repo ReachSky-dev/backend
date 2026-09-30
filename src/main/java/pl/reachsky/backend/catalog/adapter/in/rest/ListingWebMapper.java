@@ -28,7 +28,7 @@ class ListingWebMapper {
                 l.getWindow().startsAt(),
                 l.getWindow().endsAt(),
                 l.getCapacity(),
-                l.getStatus().name(),
+                l.getStatus(),
                 l.getCreatedAt());
     }
 }

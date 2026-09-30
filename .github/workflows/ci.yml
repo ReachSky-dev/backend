@@ -23,6 +23,13 @@ jobs:
       - name: Build and verify
         run: ./mvnw -B verify
 
+      - name: Check docs/openapi.json is up to date
+        run: |
+          if ! git diff --exit-code docs/openapi.json; then
+            echo "docs/openapi.json is stale — run ./mvnw verify locally and commit the result."
+            exit 1
+          fi
+
       - name: Upload Surefire reports
         if: always()
         uses: actions/upload-artifact@v4
