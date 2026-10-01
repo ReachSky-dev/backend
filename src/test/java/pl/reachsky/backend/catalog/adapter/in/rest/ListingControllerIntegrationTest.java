@@ -56,7 +56,7 @@ class ListingControllerIntegrationTest extends AbstractIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        jdbcTemplate.execute("TRUNCATE TABLE listings");
+        jdbcTemplate.execute("TRUNCATE TABLE listings CASCADE");
         client = RestClient.create("http://localhost:" + port);
         when(currentUserProvider.get()).thenReturn(
                 new CurrentUser(new UserId(UUID.randomUUID()), "test-seller", Set.of("SELLER", "USER")));

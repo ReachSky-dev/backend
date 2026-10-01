@@ -127,6 +127,123 @@
         }
       }
     },
+    "/api/auctions" : {
+      "get" : {
+        "tags" : [ "auction-controller" ],
+        "summary" : "List all running auctions",
+        "operationId" : "listRunning",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/AuctionResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "auction-controller" ],
+        "summary" : "Create and schedule a new auction for an active listing",
+        "operationId" : "createAuction",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateAuctionRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "401" : {
+            "description" : "Not authenticated",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AuctionResponse"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "SELLER role required",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AuctionResponse"
+                }
+              }
+            }
+          },
+          "201" : {
+            "description" : "Created",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AuctionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auctions/{id}/cancel" : {
+      "post" : {
+        "tags" : [ "auction-controller" ],
+        "summary" : "Cancel an auction",
+        "operationId" : "cancelAuction",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "401" : {
+            "description" : "Not authenticated",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AuctionResponse"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "SELLER role required",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AuctionResponse"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "Auction cannot be cancelled in its current state",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AuctionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/me" : {
       "get" : {
         "tags" : [ "me-controller" ],
@@ -139,6 +256,34 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/UserProfileResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auctions/{id}" : {
+      "get" : {
+        "tags" : [ "auction-controller" ],
+        "summary" : "Get auction by ID",
+        "operationId" : "getById",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "404" : {
+            "description" : "Auction not found",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AuctionResponse"
                 }
               }
             }
@@ -219,6 +364,117 @@
           }
         }
       },
+      "CreateAuctionRequest" : {
+        "type" : "object",
+        "properties" : {
+          "listingId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "type" : {
+            "type" : "string",
+            "enum" : [ "ENGLISH", "DUTCH" ]
+          },
+          "startsAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "endsAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "reservePriceAmount" : {
+            "type" : "integer",
+            "format" : "int64",
+            "minimum" : 1
+          },
+          "currency" : {
+            "type" : "string",
+            "minLength" : 1
+          },
+          "startPriceAmount" : {
+            "type" : "integer",
+            "format" : "int64",
+            "minimum" : 1
+          },
+          "minIncrementAmount" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "decrementAmount" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "stepSeconds" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "floorAmount" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "currency", "endsAt", "listingId", "reservePriceAmount", "startPriceAmount", "startsAt", "type" ]
+      },
+      "AuctionResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "listingId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "sellerId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "type" : {
+            "type" : "string",
+            "$ref" : "#/components/schemas/AuctionType",
+            "enum" : [ "ENGLISH", "DUTCH" ]
+          },
+          "status" : {
+            "type" : "string",
+            "$ref" : "#/components/schemas/AuctionStatus",
+            "enum" : [ "DRAFT", "SCHEDULED", "RUNNING", "SOLD", "RESERVE_NOT_MET", "CANCELLED", "SETTLED" ]
+          },
+          "startsAt" : {
+            "type" : "string",
+            "format" : "date-time",
+            "description" : "ISO-8601 UTC instant"
+          },
+          "endsAt" : {
+            "type" : "string",
+            "format" : "date-time",
+            "description" : "ISO-8601 UTC instant"
+          },
+          "currentPriceAmount" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "currentPriceCurrency" : {
+            "type" : "string"
+          },
+          "decrementAmount" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "decrementCurrency" : {
+            "type" : "string"
+          },
+          "stepSeconds" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
       "UserProfileResponse" : {
         "type" : "object",
         "properties" : {
@@ -264,6 +520,14 @@
             "type" : "string"
           }
         }
+      },
+      "AuctionType" : {
+        "type" : "string",
+        "enum" : [ "ENGLISH", "DUTCH" ]
+      },
+      "AuctionStatus" : {
+        "type" : "string",
+        "enum" : [ "DRAFT", "SCHEDULED", "RUNNING", "SOLD", "RESERVE_NOT_MET", "CANCELLED", "SETTLED" ]
       }
     }
   }

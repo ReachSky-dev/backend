@@ -34,7 +34,7 @@ class ListingPersistenceIntegrationTest extends AbstractIntegrationTest {
 
     @BeforeEach
     void cleanUp() {
-        jdbcTemplate.execute("TRUNCATE TABLE listings");
+        jdbcTemplate.execute("TRUNCATE TABLE listings CASCADE");
     }
 
     @Test

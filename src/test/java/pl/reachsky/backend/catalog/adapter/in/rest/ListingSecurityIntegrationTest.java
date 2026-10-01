@@ -36,7 +36,8 @@ class ListingSecurityIntegrationTest extends AbstractIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        jdbcTemplate.execute("TRUNCATE TABLE listings, user_profiles");
+        jdbcTemplate.execute("TRUNCATE TABLE listings CASCADE");
+        jdbcTemplate.execute("TRUNCATE TABLE user_profiles");
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
                 .apply(springSecurity())
                 .build();

@@ -10,6 +10,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.util.List;
+import java.util.Map;
 
 @Configuration
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
@@ -40,6 +41,14 @@ class OpenApiConfig {
                             .addProperty("status", new Schema<Integer>().type("integer").format("int32"))
                             .addProperty("detail", new StringSchema())
                             .addProperty("instance", new StringSchema()));
+
+            openApi.getComponents().addSchemas("AuctionType",
+                    new StringSchema()._enum(List.of("ENGLISH", "DUTCH")));
+
+            openApi.getComponents().addSchemas("AuctionStatus",
+                    new StringSchema()._enum(List.of(
+                            "DRAFT", "SCHEDULED", "RUNNING", "SOLD",
+                            "RESERVE_NOT_MET", "CANCELLED", "SETTLED")));
         };
     }
 }

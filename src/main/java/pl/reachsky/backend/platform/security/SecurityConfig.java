@@ -26,9 +26,12 @@ class SecurityConfig {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.GET, "/api/listings/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/auctions/**").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/listings").hasRole("SELLER")
                         .requestMatchers(HttpMethod.POST, "/api/listings/*/publish").hasRole("SELLER")
+                        .requestMatchers(HttpMethod.POST, "/api/auctions").hasRole("SELLER")
+                        .requestMatchers(HttpMethod.POST, "/api/auctions/*/cancel").hasRole("SELLER")
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll()
                 )
