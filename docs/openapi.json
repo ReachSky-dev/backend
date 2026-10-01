@@ -263,11 +263,39 @@
         }
       }
     },
+    "/api/listings/{id}" : {
+      "get" : {
+        "tags" : [ "listing-controller" ],
+        "summary" : "Get listing by ID",
+        "operationId" : "getById",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "404" : {
+            "description" : "Listing not found",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ListingResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/auctions/{id}" : {
       "get" : {
         "tags" : [ "auction-controller" ],
         "summary" : "Get auction by ID",
-        "operationId" : "getById",
+        "operationId" : "getById_1",
         "parameters" : [ {
           "name" : "id",
           "in" : "path",
