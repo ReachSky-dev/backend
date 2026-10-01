@@ -122,7 +122,7 @@ class AuctionControllerIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void createAuction_withUnknownListing_returns400() {
+    void createAuction_withUnknownListing_returns404() {
         String unknownListingRequest = dutchRequest().replace(listingId.toString(), UUID.randomUUID().toString());
 
         ResponseEntity<String> response = client.post()
@@ -130,10 +130,10 @@ class AuctionControllerIntegrationTest extends AbstractIntegrationTest {
                 .header("Content-Type", "application/json")
                 .body(unknownListingRequest)
                 .retrieve()
-                .onStatus(status -> status.value() == 400, (req, res) -> {})
+                .onStatus(status -> status.value() == 404, (req, res) -> {})
                 .toEntity(String.class);
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
     @Test

@@ -11,6 +11,7 @@ import pl.reachsky.backend.catalog.application.port.in.FindListingsQuery;
 import pl.reachsky.backend.catalog.domain.Listing;
 import pl.reachsky.backend.catalog.domain.ListingId;
 import pl.reachsky.backend.catalog.domain.ListingStatus;
+import pl.reachsky.backend.shared.NotFoundException;
 
 import java.time.Instant;
 
@@ -29,7 +30,7 @@ class CreateAuctionService implements CreateAuctionUseCase {
     @Transactional
     public AuctionId create(CreateAuctionCommand cmd) {
         Listing listing = findListingsQuery.findById(new ListingId(cmd.listingId()))
-                .orElseThrow(() -> new IllegalArgumentException("Listing not found: " + cmd.listingId()));
+                .orElseThrow(() -> new NotFoundException("Listing not found: " + cmd.listingId()));
 
         if (listing.getStatus() != ListingStatus.ACTIVE) {
             throw new IllegalArgumentException("Listing must be ACTIVE to create an auction");

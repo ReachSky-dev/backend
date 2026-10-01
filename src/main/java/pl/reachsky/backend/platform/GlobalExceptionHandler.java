@@ -7,12 +7,18 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import pl.reachsky.backend.shared.DomainException;
+import pl.reachsky.backend.shared.NotFoundException;
 
 import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestControllerAdvice
 class GlobalExceptionHandler {
+
+    @ExceptionHandler(NotFoundException.class)
+    ProblemDetail handleNotFoundException(NotFoundException ex) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
 
     @ExceptionHandler(DomainException.class)
     ProblemDetail handleDomainException(DomainException ex) {

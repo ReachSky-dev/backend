@@ -16,6 +16,7 @@ import pl.reachsky.backend.auction.application.port.in.CreateAuctionUseCase;
 import pl.reachsky.backend.auction.application.port.in.FindAuctionsQuery;
 import pl.reachsky.backend.auction.domain.AuctionId;
 import pl.reachsky.backend.shared.CurrentUserProvider;
+import pl.reachsky.backend.shared.NotFoundException;
 
 import java.util.List;
 import java.util.UUID;
@@ -64,7 +65,7 @@ class AuctionController {
     AuctionResponse getById(@PathVariable UUID id) {
         return find.findById(new AuctionId(id))
                 .map(mapper::toResponse)
-                .orElseThrow(() -> new IllegalArgumentException("Auction not found: " + id));
+                .orElseThrow(() -> new NotFoundException("Auction not found: " + id));
     }
 
     @PostMapping("/{id}/cancel")
