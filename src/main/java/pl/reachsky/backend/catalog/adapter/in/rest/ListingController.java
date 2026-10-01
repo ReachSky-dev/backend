@@ -17,6 +17,7 @@ import pl.reachsky.backend.catalog.application.port.in.PublishListingUseCase;
 import pl.reachsky.backend.catalog.domain.ListingId;
 import pl.reachsky.backend.catalog.domain.ListingStatus;
 import pl.reachsky.backend.shared.CurrentUserProvider;
+import pl.reachsky.backend.shared.NotFoundException;
 
 import java.util.List;
 import java.util.UUID;
@@ -58,6 +59,15 @@ class ListingController {
     @ApiResponse(responseCode = "409", description = "Listing is not in DRAFT state")
     ListingResponse publishListing(@PathVariable UUID id) {
         return mapper.toResponse(publish.publish(new ListingId(id)));
+    }
+
+    @GetMapping("/{id}")
+    @Operation(summary = "Get listing by ID")
+    @ApiResponse(responseCode = "404", description = "Listing not found")
+    ListingResponse getById(@PathVariable UUID id) {
+        return find.findById(new ListingId(id))
+                .map(mapper::toResponse)
+                .orElseThrow(() -> new NotFoundException("Listing not found: " + id));
     }
 
     @GetMapping

@@ -137,6 +137,19 @@ class AuctionControllerIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void auctionListingId_isAccessibleViaGetListingEndpoint() {
+        // Regression: GET /api/listings/{id} must exist and return the listing
+        // regardless of status — so auction detail pages can show listing info.
+        ResponseEntity<String> response = client.get()
+                .uri("/api/listings/{id}", listingId)
+                .retrieve()
+                .onStatus(s -> true, (req, res) -> {})
+                .toEntity(String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
+
+    @Test
     void listRunning_returns200_withEmptyListInitially() {
         ResponseEntity<AuctionResponse[]> response = client.get()
                 .uri("/api/auctions")
