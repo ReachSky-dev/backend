@@ -5,6 +5,7 @@ import org.springframework.transaction.annotation.Transactional;
 import pl.reachsky.backend.identity.application.port.in.EnsureUserProfileUseCase;
 import pl.reachsky.backend.identity.application.port.out.UserProfileRepository;
 import pl.reachsky.backend.identity.domain.UserProfile;
+import pl.reachsky.backend.shared.MissingSubjectException;
 
 @Service
 class EnsureUserProfileService implements EnsureUserProfileUseCase {
@@ -18,6 +19,9 @@ class EnsureUserProfileService implements EnsureUserProfileUseCase {
     @Override
     @Transactional
     public UserProfile ensure(String subject, String displayName) {
+        if (subject == null || subject.isBlank()) {
+            throw new MissingSubjectException();
+        }
         return repository.findBySubject(subject)
                 .orElseGet(() -> {
                     UserProfile profile = UserProfile.create(subject, displayName);

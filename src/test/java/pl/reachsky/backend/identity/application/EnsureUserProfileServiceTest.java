@@ -11,7 +11,10 @@ import pl.reachsky.backend.identity.domain.UserProfile;
 
 import java.util.UUID;
 
+import pl.reachsky.backend.shared.MissingSubjectException;
+
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 class EnsureUserProfileServiceTest extends AbstractIntegrationTest {
@@ -25,6 +28,18 @@ class EnsureUserProfileServiceTest extends AbstractIntegrationTest {
     @BeforeEach
     void setUp() {
         jdbcTemplate.execute("TRUNCATE TABLE user_profiles");
+    }
+
+    @Test
+    void ensureWithNullSubject_throwsMissingSubjectException() {
+        assertThatThrownBy(() -> service.ensure(null, "any"))
+                .isInstanceOf(MissingSubjectException.class);
+    }
+
+    @Test
+    void ensureWithBlankSubject_throwsMissingSubjectException() {
+        assertThatThrownBy(() -> service.ensure("   ", "any"))
+                .isInstanceOf(MissingSubjectException.class);
     }
 
     @Test
