@@ -15,6 +15,9 @@ public interface AuctionRepository {
 
     Optional<Auction> findById(AuctionId id);
 
+    /** Load with PESSIMISTIC_WRITE lock — use inside bid-placement transaction. */
+    Optional<Auction> findByIdForUpdate(AuctionId id);
+
     List<Auction> findByStatus(AuctionStatus status);
 
     List<Auction> findByListingId(UUID listingId);

@@ -90,5 +90,21 @@ class AuctionJpaEntity {
     @Column(name = "created_at", nullable = false, columnDefinition = "timestamptz")
     Instant createdAt;
 
+    // Bid state
+    @Column(name = "current_price_amount", nullable = false)
+    long currentPriceAmount;
+
+    @Column(name = "current_price_currency", nullable = false, length = 3)
+    String currentPriceCurrency;
+
+    @Column(name = "highest_bidder_id", columnDefinition = "uuid")
+    UUID highestBidderId;
+
+    @Column(name = "bid_count", nullable = false)
+    int bidCount;
+
+    @Column(name = "extensions_used", nullable = false)
+    int extensionsUsed;
+
     AuctionJpaEntity() {}
 }

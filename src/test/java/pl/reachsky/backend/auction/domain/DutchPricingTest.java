@@ -34,7 +34,8 @@ class DutchPricingTest {
         auction = Auction.reconstitute(
                 new AuctionId(UUID.randomUUID()), UUID.randomUUID(), UUID.randomUUID(),
                 AuctionType.DUTCH, AuctionStatus.RUNNING,
-                STARTS, ENDS, pricing, Money.of(3_000, "PLN"), null, EPOCH);
+                STARTS, ENDS, pricing, Money.of(3_000, "PLN"), null, EPOCH,
+                pricing.initialPrice(), null, 0, 0);
     }
 
     @Test

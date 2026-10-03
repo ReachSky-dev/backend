@@ -28,7 +28,9 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(DomainException.class)
     ProblemDetail handleDomainException(DomainException ex) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        problem.setProperty("code", ex.getCode());
+        return problem;
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

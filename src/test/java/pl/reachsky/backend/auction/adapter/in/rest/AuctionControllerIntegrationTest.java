@@ -57,7 +57,9 @@ class AuctionControllerIntegrationTest extends AbstractIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        jdbcTemplate.execute("TRUNCATE TABLE auctions");
+        jdbcTemplate.execute("TRUNCATE TABLE bids");
+        jdbcTemplate.execute("TRUNCATE TABLE proxy_bids");
+        jdbcTemplate.execute("TRUNCATE TABLE auctions CASCADE");
         jdbcTemplate.execute("TRUNCATE TABLE listings CASCADE");
 
         sellerId = UUID.randomUUID();

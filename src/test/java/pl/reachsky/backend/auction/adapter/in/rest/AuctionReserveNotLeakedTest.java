@@ -41,12 +41,13 @@ class AuctionReserveNotLeakedTest {
     @Test
     void englishAuction_reservePriceNotInJson() throws Exception {
         Instant starts = Instant.now().plus(1, ChronoUnit.HOURS);
+        EnglishPricing ep = new EnglishPricing(Money.of(20_000, "PLN"), Money.of(500, "PLN"));
         Auction auction = Auction.reconstitute(
                 new AuctionId(UUID.randomUUID()), UUID.randomUUID(), UUID.randomUUID(),
                 AuctionType.ENGLISH, AuctionStatus.SCHEDULED,
                 starts, starts.plus(24, ChronoUnit.HOURS),
-                new EnglishPricing(Money.of(20_000, "PLN"), Money.of(500, "PLN")),
-                Money.of(RESERVE_AMOUNT, "PLN"), null, Instant.now());
+                ep, Money.of(RESERVE_AMOUNT, "PLN"), null, Instant.now(),
+                ep.initialPrice(), null, 0, 0);
 
         String json = mapper.writeValueAsString(webMapper.toResponse(auction));
 
@@ -57,16 +58,17 @@ class AuctionReserveNotLeakedTest {
     @Test
     void dutchAuction_reserveAndFloorNotInJson() throws Exception {
         Instant starts = Instant.now().plus(1, ChronoUnit.HOURS);
+        DutchPricing dp = new DutchPricing(
+                Money.of(50_000, "PLN"),
+                Money.of(1_000, "PLN"),
+                Duration.ofHours(1),
+                Money.of(FLOOR_AMOUNT, "PLN"));
         Auction auction = Auction.reconstitute(
                 new AuctionId(UUID.randomUUID()), UUID.randomUUID(), UUID.randomUUID(),
                 AuctionType.DUTCH, AuctionStatus.SCHEDULED,
                 starts, starts.plus(24, ChronoUnit.HOURS),
-                new DutchPricing(
-                        Money.of(50_000, "PLN"),
-                        Money.of(1_000, "PLN"),
-                        Duration.ofHours(1),
-                        Money.of(FLOOR_AMOUNT, "PLN")),
-                Money.of(RESERVE_AMOUNT, "PLN"), null, Instant.now());
+                dp, Money.of(RESERVE_AMOUNT, "PLN"), null, Instant.now(),
+                dp.initialPrice(), null, 0, 0);
 
         String json = mapper.writeValueAsString(webMapper.toResponse(auction));
 

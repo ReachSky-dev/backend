@@ -54,17 +54,26 @@ class AuctionPersistenceMapper {
         }
 
         e.createdAt = a.getCreatedAt();
+
+        e.currentPriceAmount = a.getCurrentPrice().amountInMinorUnits();
+        e.currentPriceCurrency = a.getCurrentPrice().currency().getCurrencyCode();
+        e.highestBidderId = a.getHighestBidderId();
+        e.bidCount = a.getBidCount();
+        e.extensionsUsed = a.getExtensionsUsed();
+
         return e;
     }
 
     Auction toDomain(AuctionJpaEntity e) {
         PricingPolicy policy = buildPolicy(e);
         AntiSnipingPolicy asp = buildAntiSniping(e);
+        Money currentPrice = new Money(e.currentPriceAmount, Currency.getInstance(e.currentPriceCurrency));
         return Auction.reconstitute(
                 new AuctionId(e.id), e.listingId, e.sellerId, e.type, e.status,
                 e.startsAt, e.endsAt, policy,
                 new Money(e.reservePriceAmount, Currency.getInstance(e.reservePriceCurrency)),
-                asp, e.createdAt);
+                asp, e.createdAt,
+                currentPrice, e.highestBidderId, e.bidCount, e.extensionsUsed);
     }
 
     private PricingPolicy buildPolicy(AuctionJpaEntity e) {

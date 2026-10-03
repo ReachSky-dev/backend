@@ -33,6 +33,11 @@ class JpaAuctionRepository implements AuctionRepository {
     }
 
     @Override
+    public Optional<Auction> findByIdForUpdate(AuctionId id) {
+        return springRepo.findByIdWithLock(id.value()).map(mapper::toDomain);
+    }
+
+    @Override
     public List<Auction> findByStatus(AuctionStatus status) {
         return springRepo.findAllByStatus(status).stream().map(mapper::toDomain).toList();
     }

@@ -8,8 +8,16 @@ public record EnglishPricing(Money startPrice, Money minIncrement) implements Pr
 
     @Override
     public Money priceAt(Instant now, Auction auction) {
-        // Current price tracks highest bid — bids come in the next phase.
-        // Before any bid, price equals the starting price.
+        return auction.getCurrentPrice();
+    }
+
+    @Override
+    public Money initialPrice() {
         return startPrice;
+    }
+
+    @Override
+    public Money minimumNextBid(Money currentPrice, int bidCount) {
+        return bidCount == 0 ? startPrice : currentPrice.add(minIncrement);
     }
 }

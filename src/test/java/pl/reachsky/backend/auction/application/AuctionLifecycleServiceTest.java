@@ -35,7 +35,9 @@ class AuctionLifecycleServiceTest extends AbstractIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        jdbcTemplate.execute("TRUNCATE TABLE auctions");
+        jdbcTemplate.execute("TRUNCATE TABLE bids");
+        jdbcTemplate.execute("TRUNCATE TABLE proxy_bids");
+        jdbcTemplate.execute("TRUNCATE TABLE auctions CASCADE");
         jdbcTemplate.execute("TRUNCATE TABLE listings CASCADE");
     }
 
@@ -84,16 +86,18 @@ class AuctionLifecycleServiceTest extends AbstractIntegrationTest {
 
     private AuctionId insertScheduledAuction(UUID listingId, Instant startsAt) {
         Instant endsAt = startsAt.plus(24, ChronoUnit.HOURS);
+        DutchPricing pricing = new DutchPricing(
+                Money.of(10_000, "PLN"),
+                Money.of(1_000, "PLN"),
+                Duration.ofHours(1),
+                Money.of(3_000, "PLN"));
         Auction auction = Auction.reconstitute(
                 new AuctionId(UUID.randomUUID()), listingId, UUID.randomUUID(),
                 AuctionType.DUTCH, AuctionStatus.SCHEDULED,
                 startsAt, endsAt,
-                new DutchPricing(
-                        Money.of(10_000, "PLN"),
-                        Money.of(1_000, "PLN"),
-                        Duration.ofHours(1),
-                        Money.of(3_000, "PLN")),
-                Money.of(3_000, "PLN"), null, Instant.now());
+                pricing,
+                Money.of(3_000, "PLN"), null, Instant.now(),
+                pricing.initialPrice(), null, 0, 0);
         auctionRepository.save(auction);
         return auction.getId();
     }

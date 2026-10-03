@@ -14,16 +14,23 @@ public final class Auction {
     private final AuctionType type;
     private AuctionStatus status;
     private final Instant startsAt;
-    private final Instant endsAt;
+    private Instant endsAt;                // mutable: anti-sniping can extend
     private final PricingPolicy pricingPolicy;
     private final Money reservePrice;
     private final AntiSnipingPolicy antiSnipingPolicy;
     private final Instant createdAt;
 
+    // Bid state — updated by placeBid
+    private Money currentPrice;
+    private UUID highestBidderId;
+    private int bidCount;
+    private int extensionsUsed;
+
     private Auction(AuctionId id, UUID listingId, UUID sellerId, AuctionType type,
                     AuctionStatus status, Instant startsAt, Instant endsAt,
                     PricingPolicy pricingPolicy, Money reservePrice,
-                    AntiSnipingPolicy antiSnipingPolicy, Instant createdAt) {
+                    AntiSnipingPolicy antiSnipingPolicy, Instant createdAt,
+                    Money currentPrice, UUID highestBidderId, int bidCount, int extensionsUsed) {
         this.id = id;
         this.listingId = listingId;
         this.sellerId = sellerId;
@@ -35,6 +42,10 @@ public final class Auction {
         this.reservePrice = reservePrice;
         this.antiSnipingPolicy = antiSnipingPolicy;
         this.createdAt = createdAt;
+        this.currentPrice = currentPrice;
+        this.highestBidderId = highestBidderId;
+        this.bidCount = bidCount;
+        this.extensionsUsed = extensionsUsed;
     }
 
     public static Auction create(UUID listingId, UUID sellerId, AuctionType type,
@@ -47,15 +58,19 @@ public final class Auction {
         if (!endsAt.isAfter(startsAt)) throw new IllegalArgumentException("endsAt must be after startsAt");
         return new Auction(new AuctionId(Ids.next()), listingId, sellerId, type,
                 AuctionStatus.DRAFT, startsAt, endsAt, pricingPolicy, reservePrice,
-                antiSnipingPolicy, Instant.now());
+                antiSnipingPolicy, Instant.now(),
+                pricingPolicy.initialPrice(), null, 0, 0);
     }
 
     public static Auction reconstitute(AuctionId id, UUID listingId, UUID sellerId, AuctionType type,
                                         AuctionStatus status, Instant startsAt, Instant endsAt,
                                         PricingPolicy pricingPolicy, Money reservePrice,
-                                        AntiSnipingPolicy antiSnipingPolicy, Instant createdAt) {
+                                        AntiSnipingPolicy antiSnipingPolicy, Instant createdAt,
+                                        Money currentPrice, UUID highestBidderId,
+                                        int bidCount, int extensionsUsed) {
         return new Auction(id, listingId, sellerId, type, status, startsAt, endsAt,
-                pricingPolicy, reservePrice, antiSnipingPolicy, createdAt);
+                pricingPolicy, reservePrice, antiSnipingPolicy, createdAt,
+                currentPrice, highestBidderId, bidCount, extensionsUsed);
     }
 
     public void schedule() {
@@ -68,6 +83,34 @@ public final class Auction {
 
     public void cancel() {
         this.status = status.cancel();
+    }
+
+    /**
+     * Places a bid on this English auction.
+     * Validates state, enforces minimum increment, applies anti-sniping extension.
+     * Returns the new Bid — caller must persist both the Bid and the updated Auction.
+     */
+    public Bid placeBid(BidderId bidderId, Money amount, Instant now, String idempotencyKey) {
+        if (status != AuctionStatus.RUNNING) throw new AuctionNotRunning(id);
+        if (!now.isBefore(endsAt)) throw new AuctionAlreadyEnded(id, endsAt, now);
+        if (bidderId.value().equals(sellerId)) throw new SellerCannotBid(id);
+
+        Money minRequired = pricingPolicy.minimumNextBid(currentPrice, bidCount);
+        if (amount.isLessThan(minRequired)) throw new BidTooLow(amount, minRequired);
+
+        currentPrice = amount;
+        highestBidderId = bidderId.value();
+        long sequence = ++bidCount;
+
+        if (antiSnipingPolicy != null && extensionsUsed < antiSnipingPolicy.maxExtensions()) {
+            Instant threshold = endsAt.minus(antiSnipingPolicy.window());
+            if (!now.isBefore(threshold)) {
+                endsAt = endsAt.plus(antiSnipingPolicy.extension());
+                extensionsUsed++;
+            }
+        }
+
+        return Bid.create(id, bidderId, amount, sequence, now, idempotencyKey);
     }
 
     public Money currentPriceAt(Instant now) {
@@ -91,4 +134,8 @@ public final class Auction {
     public Money getReservePrice() { return reservePrice; }
     public AntiSnipingPolicy getAntiSnipingPolicy() { return antiSnipingPolicy; }
     public Instant getCreatedAt() { return createdAt; }
+    public Money getCurrentPrice() { return currentPrice; }
+    public UUID getHighestBidderId() { return highestBidderId; }
+    public int getBidCount() { return bidCount; }
+    public int getExtensionsUsed() { return extensionsUsed; }
 }

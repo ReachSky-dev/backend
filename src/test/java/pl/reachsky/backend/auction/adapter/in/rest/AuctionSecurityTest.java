@@ -38,7 +38,7 @@ class AuctionSecurityTest extends AbstractIntegrationTest {
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
                 .apply(springSecurity())
                 .build();
-        jdbcTemplate.execute("TRUNCATE TABLE auctions");
+        jdbcTemplate.execute("TRUNCATE TABLE auctions CASCADE");
         jdbcTemplate.execute("TRUNCATE TABLE listings CASCADE");
         listingId = insertListing();
     }

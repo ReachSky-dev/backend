@@ -19,6 +19,16 @@ public record DutchPricing(Money startPrice, Money decrement, Duration step, Mon
         implements PricingPolicy {
 
     @Override
+    public Money initialPrice() {
+        return startPrice;
+    }
+
+    @Override
+    public Money minimumNextBid(Money currentPrice, int bidCount) {
+        return currentPrice;
+    }
+
+    @Override
     public Money priceAt(Instant now, Auction auction) {
         Instant effectiveNow = now.isAfter(auction.getEndsAt()) ? auction.getEndsAt() : now;
 

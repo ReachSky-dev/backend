@@ -244,6 +244,131 @@
         }
       }
     },
+    "/api/auctions/{auctionId}/bids" : {
+      "get" : {
+        "tags" : [ "bid-controller" ],
+        "summary" : "List all bids for an auction, ordered by sequence ascending",
+        "operationId" : "listBids",
+        "parameters" : [ {
+          "name" : "auctionId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/BidResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "bid-controller" ],
+        "summary" : "Place a bid on an English auction",
+        "operationId" : "placeBid",
+        "parameters" : [ {
+          "name" : "auctionId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "Idempotency-Key",
+          "in" : "header",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/PlaceBidRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "409" : {
+            "description" : "Bid rejected — too low or auction not running",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/BidResponse"
+                }
+              }
+            }
+          },
+          "200" : {
+            "description" : "Duplicate idempotency key — returns existing bid",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/BidResponse"
+                }
+              }
+            }
+          },
+          "201" : {
+            "description" : "Created",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/BidResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auctions/{auctionId}/bids/proxy" : {
+      "post" : {
+        "tags" : [ "bid-controller" ],
+        "summary" : "Set or update a proxy (automatic) bid",
+        "operationId" : "setProxy",
+        "parameters" : [ {
+          "name" : "auctionId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SetProxyBidRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        }
+      }
+    },
     "/api/me" : {
       "get" : {
         "tags" : [ "me-controller" ],
@@ -502,6 +627,68 @@
             "format" : "date-time"
           }
         }
+      },
+      "PlaceBidRequest" : {
+        "type" : "object",
+        "properties" : {
+          "amountInMinorUnits" : {
+            "type" : "integer",
+            "format" : "int64",
+            "minimum" : 1
+          },
+          "currency" : {
+            "type" : "string",
+            "minLength" : 1
+          }
+        },
+        "required" : [ "currency" ]
+      },
+      "BidResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "auctionId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "bidderId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "amountInMinorUnits" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "currency" : {
+            "type" : "string"
+          },
+          "sequence" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "placedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
+      "SetProxyBidRequest" : {
+        "type" : "object",
+        "properties" : {
+          "maxAmountInMinorUnits" : {
+            "type" : "integer",
+            "format" : "int64",
+            "minimum" : 1
+          },
+          "currency" : {
+            "type" : "string",
+            "minLength" : 1
+          }
+        },
+        "required" : [ "currency" ]
       },
       "UserProfileResponse" : {
         "type" : "object",
