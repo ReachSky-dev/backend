@@ -106,5 +106,8 @@ class AuctionJpaEntity {
     @Column(name = "extensions_used", nullable = false)
     int extensionsUsed;
 
+    @Column(name = "winner_id", columnDefinition = "uuid")
+    UUID winnerId;
+
     AuctionJpaEntity() {}
 }

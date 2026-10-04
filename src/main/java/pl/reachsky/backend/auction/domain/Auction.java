@@ -26,11 +26,15 @@ public final class Auction {
     private int bidCount;
     private int extensionsUsed;
 
+    // Settlement state — set by settle()
+    private UUID winnerId;
+
     private Auction(AuctionId id, UUID listingId, UUID sellerId, AuctionType type,
                     AuctionStatus status, Instant startsAt, Instant endsAt,
                     PricingPolicy pricingPolicy, Money reservePrice,
                     AntiSnipingPolicy antiSnipingPolicy, Instant createdAt,
-                    Money currentPrice, UUID highestBidderId, int bidCount, int extensionsUsed) {
+                    Money currentPrice, UUID highestBidderId, int bidCount, int extensionsUsed,
+                    UUID winnerId) {
         this.id = id;
         this.listingId = listingId;
         this.sellerId = sellerId;
@@ -46,6 +50,7 @@ public final class Auction {
         this.highestBidderId = highestBidderId;
         this.bidCount = bidCount;
         this.extensionsUsed = extensionsUsed;
+        this.winnerId = winnerId;
     }
 
     public static Auction create(UUID listingId, UUID sellerId, AuctionType type,
@@ -59,7 +64,7 @@ public final class Auction {
         return new Auction(new AuctionId(Ids.next()), listingId, sellerId, type,
                 AuctionStatus.DRAFT, startsAt, endsAt, pricingPolicy, reservePrice,
                 antiSnipingPolicy, Instant.now(),
-                pricingPolicy.initialPrice(), null, 0, 0);
+                pricingPolicy.initialPrice(), null, 0, 0, null);
     }
 
     public static Auction reconstitute(AuctionId id, UUID listingId, UUID sellerId, AuctionType type,
@@ -67,10 +72,10 @@ public final class Auction {
                                         PricingPolicy pricingPolicy, Money reservePrice,
                                         AntiSnipingPolicy antiSnipingPolicy, Instant createdAt,
                                         Money currentPrice, UUID highestBidderId,
-                                        int bidCount, int extensionsUsed) {
+                                        int bidCount, int extensionsUsed, UUID winnerId) {
         return new Auction(id, listingId, sellerId, type, status, startsAt, endsAt,
                 pricingPolicy, reservePrice, antiSnipingPolicy, createdAt,
-                currentPrice, highestBidderId, bidCount, extensionsUsed);
+                currentPrice, highestBidderId, bidCount, extensionsUsed, winnerId);
     }
 
     public void schedule() {
@@ -113,6 +118,28 @@ public final class Auction {
         return Bid.create(id, bidderId, amount, sequence, now, idempotencyKey);
     }
 
+    /**
+     * Settles a finished auction.
+     * Idempotent: returns AlreadySettled if already SOLD or RESERVE_NOT_MET.
+     */
+    public SettlementResult settle() {
+        if (status == AuctionStatus.SOLD || status == AuctionStatus.RESERVE_NOT_MET) {
+            return new SettlementResult.AlreadySettled();
+        }
+        if (status != AuctionStatus.RUNNING) {
+            throw new AuctionNotRunning(id);
+        }
+        boolean reserveMet = bidCount > 0 && !currentPrice.isLessThan(reservePrice);
+        if (reserveMet) {
+            this.status = AuctionStatus.SOLD;
+            this.winnerId = highestBidderId;
+            return new SettlementResult.Sold(winnerId, currentPrice);
+        } else {
+            this.status = AuctionStatus.RESERVE_NOT_MET;
+            return new SettlementResult.ReserveNotMet();
+        }
+    }
+
     public Money currentPriceAt(Instant now) {
         return pricingPolicy.priceAt(now, this);
     }
@@ -138,4 +165,5 @@ public final class Auction {
     public UUID getHighestBidderId() { return highestBidderId; }
     public int getBidCount() { return bidCount; }
     public int getExtensionsUsed() { return extensionsUsed; }
+    public UUID getWinnerId() { return winnerId; }
 }

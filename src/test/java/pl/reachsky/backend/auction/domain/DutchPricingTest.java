@@ -35,7 +35,7 @@ class DutchPricingTest {
                 new AuctionId(UUID.randomUUID()), UUID.randomUUID(), UUID.randomUUID(),
                 AuctionType.DUTCH, AuctionStatus.RUNNING,
                 STARTS, ENDS, pricing, Money.of(3_000, "PLN"), null, EPOCH,
-                pricing.initialPrice(), null, 0, 0);
+                pricing.initialPrice(), null, 0, 0, null);
     }
 
     @Test

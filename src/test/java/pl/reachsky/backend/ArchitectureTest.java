@@ -35,4 +35,10 @@ class ArchitectureTest {
             noClasses().that().resideInAPackage("..adapter.in..")
                     .should().dependOnClassesThat().resideInAPackage("..adapter.out..")
                     .as("Inbound adapters must not depend on outbound adapters");
+
+    @ArchTest
+    static final ArchRule ordering_must_not_depend_on_auction_domain =
+            noClasses().that().resideInAPackage("..ordering..")
+                    .should().dependOnClassesThat().resideInAPackage("..auction.domain..")
+                    .as("ordering module must not depend on auction domain");
 }

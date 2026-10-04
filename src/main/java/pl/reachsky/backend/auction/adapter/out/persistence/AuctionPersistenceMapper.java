@@ -60,6 +60,7 @@ class AuctionPersistenceMapper {
         e.highestBidderId = a.getHighestBidderId();
         e.bidCount = a.getBidCount();
         e.extensionsUsed = a.getExtensionsUsed();
+        e.winnerId = a.getWinnerId();
 
         return e;
     }
@@ -73,7 +74,7 @@ class AuctionPersistenceMapper {
                 e.startsAt, e.endsAt, policy,
                 new Money(e.reservePriceAmount, Currency.getInstance(e.reservePriceCurrency)),
                 asp, e.createdAt,
-                currentPrice, e.highestBidderId, e.bidCount, e.extensionsUsed);
+                currentPrice, e.highestBidderId, e.bidCount, e.extensionsUsed, e.winnerId);
     }
 
     private PricingPolicy buildPolicy(AuctionJpaEntity e) {

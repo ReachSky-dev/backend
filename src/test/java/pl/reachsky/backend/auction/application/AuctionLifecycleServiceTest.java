@@ -97,7 +97,7 @@ class AuctionLifecycleServiceTest extends AbstractIntegrationTest {
                 startsAt, endsAt,
                 pricing,
                 Money.of(3_000, "PLN"), null, Instant.now(),
-                pricing.initialPrice(), null, 0, 0);
+                pricing.initialPrice(), null, 0, 0, null);
         auctionRepository.save(auction);
         return auction.getId();
     }

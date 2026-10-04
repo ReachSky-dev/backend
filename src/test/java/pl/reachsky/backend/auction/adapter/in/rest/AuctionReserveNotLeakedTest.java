@@ -47,7 +47,7 @@ class AuctionReserveNotLeakedTest {
                 AuctionType.ENGLISH, AuctionStatus.SCHEDULED,
                 starts, starts.plus(24, ChronoUnit.HOURS),
                 ep, Money.of(RESERVE_AMOUNT, "PLN"), null, Instant.now(),
-                ep.initialPrice(), null, 0, 0);
+                ep.initialPrice(), null, 0, 0, null);
 
         String json = mapper.writeValueAsString(webMapper.toResponse(auction));
 
@@ -68,7 +68,7 @@ class AuctionReserveNotLeakedTest {
                 AuctionType.DUTCH, AuctionStatus.SCHEDULED,
                 starts, starts.plus(24, ChronoUnit.HOURS),
                 dp, Money.of(RESERVE_AMOUNT, "PLN"), null, Instant.now(),
-                dp.initialPrice(), null, 0, 0);
+                dp.initialPrice(), null, 0, 0, null);
 
         String json = mapper.writeValueAsString(webMapper.toResponse(auction));
 
