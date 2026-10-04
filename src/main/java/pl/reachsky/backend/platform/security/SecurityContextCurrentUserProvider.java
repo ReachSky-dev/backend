@@ -5,13 +5,14 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Component;
 import pl.reachsky.backend.identity.application.port.in.EnsureUserProfileUseCase;
-import pl.reachsky.backend.identity.domain.UserProfile;
 import pl.reachsky.backend.shared.CurrentUser;
 import pl.reachsky.backend.shared.CurrentUserProvider;
+import pl.reachsky.backend.shared.UserId;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -39,8 +40,8 @@ class SecurityContextCurrentUserProvider implements CurrentUserProvider {
         String username = jwt.getClaimAsString("preferred_username");
         if (username == null || username.isBlank()) username = sub;
 
-        UserProfile profile = ensureUserProfile.ensure(sub, username);
-        return new CurrentUser(profile.getId(), username, extractRoles(jwt));
+        ensureUserProfile.ensure(sub, username);
+        return new CurrentUser(new UserId(UUID.fromString(sub)), username, extractRoles(jwt));
     }
 
     @SuppressWarnings("unchecked")
