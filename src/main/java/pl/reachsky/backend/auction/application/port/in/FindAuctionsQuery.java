@@ -14,4 +14,6 @@ public interface FindAuctionsQuery {
     Optional<Auction> findById(AuctionId id);
 
     List<Auction> findByListing(UUID listingId);
+
+    List<Auction> findBySeller(UUID sellerId);
 }

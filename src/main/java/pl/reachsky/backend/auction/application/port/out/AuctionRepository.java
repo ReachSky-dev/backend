@@ -22,6 +22,8 @@ public interface AuctionRepository {
 
     List<Auction> findByListingId(UUID listingId);
 
+    List<Auction> findBySellerId(UUID sellerId);
+
     List<Auction> findDueToStart(Instant now);
 
     List<Auction> findDueToEnd(Instant now);

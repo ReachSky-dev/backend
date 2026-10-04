@@ -48,6 +48,11 @@ class JpaAuctionRepository implements AuctionRepository {
     }
 
     @Override
+    public List<Auction> findBySellerId(UUID sellerId) {
+        return springRepo.findAllBySellerId(sellerId).stream().map(mapper::toDomain).toList();
+    }
+
+    @Override
     public List<Auction> findDueToStart(Instant now) {
         return springRepo.findAllByStatusAndStartsAtLessThanEqual(AuctionStatus.SCHEDULED, now)
                 .stream().map(mapper::toDomain).toList();

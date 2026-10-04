@@ -162,6 +162,51 @@ class AuctionControllerIntegrationTest extends AbstractIntegrationTest {
         assertThat(response.getBody()).isEmpty();
     }
 
+    @Test
+    void listMy_returnsScheduledAuction_createdBySeller() {
+        client.post()
+                .uri("/api/auctions")
+                .header("Content-Type", "application/json")
+                .body(dutchRequest())
+                .retrieve()
+                .toBodilessEntity();
+
+        ResponseEntity<AuctionResponse[]> response = client.get()
+                .uri("/api/auctions/my")
+                .retrieve()
+                .toEntity(AuctionResponse[].class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).hasSize(1);
+        assertThat(response.getBody()[0].status())
+                .isEqualTo(pl.reachsky.backend.auction.domain.AuctionStatus.SCHEDULED);
+    }
+
+    @Test
+    void listMy_doesNotReturnAuctionsOfOtherSellers() {
+        UUID otherSeller = UUID.randomUUID();
+        UUID otherListing = insertListing(otherSeller);
+        String otherRequest = dutchRequest().replace(listingId.toString(), otherListing.toString());
+
+        when(currentUserProvider.get()).thenReturn(
+                new CurrentUser(new UserId(otherSeller), "other-seller", Set.of("SELLER", "USER")));
+        client.post()
+                .uri("/api/auctions")
+                .header("Content-Type", "application/json")
+                .body(otherRequest)
+                .retrieve()
+                .toBodilessEntity();
+
+        when(currentUserProvider.get()).thenReturn(
+                new CurrentUser(new UserId(sellerId), "test-seller", Set.of("SELLER", "USER")));
+        ResponseEntity<AuctionResponse[]> response = client.get()
+                .uri("/api/auctions/my")
+                .retrieve()
+                .toEntity(AuctionResponse[].class);
+
+        assertThat(response.getBody()).isEmpty();
+    }
+
     private UUID insertListing(UUID sellerId) {
         UUID id = UUID.randomUUID();
         jdbcTemplate.update("""

@@ -59,6 +59,14 @@ class AuctionController {
         return find.findRunning().stream().map(mapper::toResponse).toList();
     }
 
+    @GetMapping("/my")
+    @Operation(summary = "List all auctions created by the current seller (all statuses)")
+    @ApiResponse(responseCode = "401", description = "Not authenticated")
+    List<AuctionResponse> listMy() {
+        UUID sellerId = currentUserProvider.get().id().value();
+        return find.findBySeller(sellerId).stream().map(mapper::toResponse).toList();
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Get auction by ID")
     @ApiResponse(responseCode = "404", description = "Auction not found")

@@ -21,6 +21,8 @@ interface AuctionSpringDataRepository extends JpaRepository<AuctionJpaEntity, UU
 
     List<AuctionJpaEntity> findAllByListingId(UUID listingId);
 
+    List<AuctionJpaEntity> findAllBySellerId(UUID sellerId);
+
     List<AuctionJpaEntity> findAllByStatusAndStartsAtLessThanEqual(AuctionStatus status, Instant now);
 
     List<AuctionJpaEntity> findAllByStatusAndEndsAtLessThanEqual(AuctionStatus status, Instant now);
