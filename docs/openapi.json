@@ -10,6 +10,44 @@
     "description" : "Generated server url"
   } ],
   "paths" : {
+    "/api/orders/{id}/pay" : {
+      "post" : {
+        "tags" : [ "order-controller" ],
+        "summary" : "Pay for an order",
+        "operationId" : "pay",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "409" : {
+            "description" : "Order not in PENDING_PAYMENT state or deadline passed",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OrderResponse"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Order not found",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OrderResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/listings" : {
       "get" : {
         "tags" : [ "listing-controller" ],
@@ -68,6 +106,64 @@
           },
           "201" : {
             "description" : "Created",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ListingResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/listings/{id}/renew" : {
+      "post" : {
+        "tags" : [ "listing-controller" ],
+        "summary" : "Re-activate a CLOSED listing",
+        "operationId" : "renewListing",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "401" : {
+            "description" : "Not authenticated",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ListingResponse"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "SELLER role required",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ListingResponse"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Listing not found",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ListingResponse"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "Listing is not in CLOSED state",
             "content" : {
               "*/*" : {
                 "schema" : {
@@ -369,6 +465,56 @@
         }
       }
     },
+    "/api/orders" : {
+      "get" : {
+        "tags" : [ "order-controller" ],
+        "summary" : "List orders for the current buyer",
+        "operationId" : "myOrders",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/OrderResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/orders/{id}" : {
+      "get" : {
+        "tags" : [ "order-controller" ],
+        "summary" : "Get order by ID",
+        "operationId" : "getById",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "404" : {
+            "description" : "Order not found",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OrderResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/me" : {
       "get" : {
         "tags" : [ "me-controller" ],
@@ -392,7 +538,7 @@
       "get" : {
         "tags" : [ "listing-controller" ],
         "summary" : "Get listing by ID",
-        "operationId" : "getById",
+        "operationId" : "getById_1",
         "parameters" : [ {
           "name" : "id",
           "in" : "path",
@@ -420,7 +566,7 @@
       "get" : {
         "tags" : [ "auction-controller" ],
         "summary" : "Get auction by ID",
-        "operationId" : "getById_1",
+        "operationId" : "getById_2",
         "parameters" : [ {
           "name" : "id",
           "in" : "path",
@@ -443,10 +589,112 @@
           }
         }
       }
+    },
+    "/api/auctions/won" : {
+      "get" : {
+        "tags" : [ "auction-controller" ],
+        "summary" : "List auctions won by the current user",
+        "operationId" : "listWon",
+        "responses" : {
+          "401" : {
+            "description" : "Not authenticated",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/AuctionResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auctions/my" : {
+      "get" : {
+        "tags" : [ "auction-controller" ],
+        "summary" : "List all auctions created by the current seller (all statuses)",
+        "operationId" : "listMy",
+        "responses" : {
+          "401" : {
+            "description" : "Not authenticated",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/AuctionResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auctions/history" : {
+      "get" : {
+        "tags" : [ "auction-controller" ],
+        "summary" : "List all ended auctions (SOLD, RESERVE_NOT_MET, CANCELLED, SETTLED)",
+        "operationId" : "listHistory",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/AuctionResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components" : {
     "schemas" : {
+      "OrderResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "auctionId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "buyerId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "amountInMinorUnits" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "currency" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "PENDING_PAYMENT", "PAID", "CONFIRMED", "EXPIRED", "CANCELLED" ]
+          },
+          "paymentDeadline" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
       "CreateListingRequest" : {
         "type" : "object",
         "properties" : {
