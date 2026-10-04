@@ -133,6 +133,7 @@ INSERT INTO listings (id, seller_id, title, description, window_starts_at, windo
 INSERT INTO auctions (id, listing_id, seller_id, type, status,
                       starts_at, ends_at,
                       start_price_amount, start_price_currency,
+                      current_price_amount, current_price_currency,
                       min_increment_amount, min_increment_currency,
                       reserve_price_amount, reserve_price_currency)
 VALUES
@@ -141,19 +142,20 @@ VALUES
      '0193a41c-0000-7001-8001-000000000001',
      'ENGLISH', 'RUNNING',
      now() - interval '1 hour', now() + interval '2 days',
-     50000, 'PLN', 5000, 'PLN', 40000, 'PLN'),
+     50000, 'PLN', 50000, 'PLN', 5000, 'PLN', 40000, 'PLN'),
 
     ('0193a41c-0000-7003-8002-000000000002',
      '0193a41c-0000-7002-8002-000000000002',
      '0193a41c-0000-7001-8001-000000000001',
      'ENGLISH', 'RUNNING',
      now() - interval '30 minutes', now() + interval '3 days',
-     30000, 'PLN', 2000, 'PLN', 25000, 'PLN');
+     30000, 'PLN', 30000, 'PLN', 2000, 'PLN', 25000, 'PLN');
 
 -- 2 DUTCH RUNNING
 INSERT INTO auctions (id, listing_id, seller_id, type, status,
                       starts_at, ends_at,
                       start_price_amount, start_price_currency,
+                      current_price_amount, current_price_currency,
                       decrement_amount, decrement_currency,
                       step_seconds,
                       floor_amount, floor_currency,
@@ -164,19 +166,20 @@ VALUES
      '0193a41c-0000-7001-8001-000000000001',
      'DUTCH', 'RUNNING',
      now() - interval '2 hours', now() + interval '1 day',
-     120000, 'PLN', 5000, 'PLN', 3600, 70000, 'PLN', 65000, 'PLN'),
+     120000, 'PLN', 120000, 'PLN', 5000, 'PLN', 3600, 70000, 'PLN', 65000, 'PLN'),
 
     ('0193a41c-0000-7003-8004-000000000004',
      '0193a41c-0000-7002-8004-000000000004',
      '0193a41c-0000-7001-8001-000000000001',
      'DUTCH', 'RUNNING',
      now() - interval '45 minutes', now() + interval '6 hours',
-     80000, 'PLN', 2000, 'PLN', 1800, 50000, 'PLN', 48000, 'PLN');
+     80000, 'PLN', 80000, 'PLN', 2000, 'PLN', 1800, 50000, 'PLN', 48000, 'PLN');
 
 -- 1 SCHEDULED (starts in ~5 minutes)
 INSERT INTO auctions (id, listing_id, seller_id, type, status,
                       starts_at, ends_at,
                       start_price_amount, start_price_currency,
+                      current_price_amount, current_price_currency,
                       min_increment_amount, min_increment_currency,
                       reserve_price_amount, reserve_price_currency)
 VALUES
@@ -185,4 +188,4 @@ VALUES
      '0193a41c-0000-7001-8001-000000000001',
      'ENGLISH', 'SCHEDULED',
      now() + interval '5 minutes', now() + interval '3 days',
-     20000, 'PLN', 1000, 'PLN', 15000, 'PLN');
+     20000, 'PLN', 20000, 'PLN', 1000, 'PLN', 15000, 'PLN');
