@@ -12,4 +12,6 @@ interface ListingSpringDataRepository extends JpaRepository<ListingJpaEntity, UU
     List<ListingJpaEntity> findAllByStatus(ListingStatus status);
 
     List<ListingJpaEntity> findAllByStatusAndWindowEndsAtLessThanEqual(ListingStatus status, Instant now);
+
+    List<ListingJpaEntity> findAllByStatusAndWindowEndsAtGreaterThan(ListingStatus status, Instant now);
 }

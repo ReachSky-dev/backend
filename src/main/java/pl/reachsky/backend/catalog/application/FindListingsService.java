@@ -8,6 +8,7 @@ import pl.reachsky.backend.catalog.domain.Listing;
 import pl.reachsky.backend.catalog.domain.ListingId;
 import pl.reachsky.backend.catalog.domain.ListingStatus;
 
+import java.time.Clock;
 import java.util.List;
 import java.util.Optional;
 
@@ -15,15 +16,23 @@ import java.util.Optional;
 class FindListingsService implements FindListingsQuery {
 
     private final ListingRepository repository;
+    private final Clock clock;
 
-    FindListingsService(ListingRepository repository) {
+    FindListingsService(ListingRepository repository, Clock clock) {
         this.repository = repository;
+        this.clock = clock;
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<Listing> findByStatus(ListingStatus status) {
         return repository.findAllByStatus(status);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Listing> findAvailable() {
+        return repository.findAvailable(clock.instant());
     }
 
     @Override

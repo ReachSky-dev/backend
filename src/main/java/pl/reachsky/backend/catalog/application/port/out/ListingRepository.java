@@ -17,4 +17,6 @@ public interface ListingRepository {
     List<Listing> findAllByStatus(ListingStatus status);
 
     List<Listing> findActiveExpired(Instant now);
+
+    List<Listing> findAvailable(Instant now);
 }

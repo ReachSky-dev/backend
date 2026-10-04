@@ -16,7 +16,6 @@ import pl.reachsky.backend.catalog.application.port.in.FindListingsQuery;
 import pl.reachsky.backend.catalog.application.port.in.PublishListingUseCase;
 import pl.reachsky.backend.catalog.application.port.in.RenewListingUseCase;
 import pl.reachsky.backend.catalog.domain.ListingId;
-import pl.reachsky.backend.catalog.domain.ListingStatus;
 import pl.reachsky.backend.shared.CurrentUserProvider;
 import pl.reachsky.backend.shared.NotFoundException;
 
@@ -84,9 +83,9 @@ class ListingController {
     }
 
     @GetMapping
-    @Operation(summary = "List all active listings")
+    @Operation(summary = "List active listings whose resource window has not yet ended")
     List<ListingResponse> listActive() {
-        return find.findByStatus(ListingStatus.ACTIVE).stream()
+        return find.findAvailable().stream()
                 .map(mapper::toResponse)
                 .toList();
     }

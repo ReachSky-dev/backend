@@ -11,5 +11,7 @@ public interface FindListingsQuery {
 
     List<Listing> findByStatus(ListingStatus status);
 
+    List<Listing> findAvailable();
+
     Optional<Listing> findById(ListingId id);
 }

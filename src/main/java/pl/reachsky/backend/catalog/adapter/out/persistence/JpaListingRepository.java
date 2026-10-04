@@ -43,4 +43,10 @@ class JpaListingRepository implements ListingRepository {
         return springRepo.findAllByStatusAndWindowEndsAtLessThanEqual(ListingStatus.ACTIVE, now)
                 .stream().map(mapper::toDomain).toList();
     }
+
+    @Override
+    public List<Listing> findAvailable(Instant now) {
+        return springRepo.findAllByStatusAndWindowEndsAtGreaterThan(ListingStatus.ACTIVE, now)
+                .stream().map(mapper::toDomain).toList();
+    }
 }
