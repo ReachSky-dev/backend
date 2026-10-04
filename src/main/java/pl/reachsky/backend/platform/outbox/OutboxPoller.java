@@ -29,22 +29,20 @@ public class OutboxPoller {
 
     private static final Logger log = LoggerFactory.getLogger(OutboxPoller.class);
     private static final int BATCH_SIZE = 50;
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final OutboxRepository outboxRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final TransactionTemplate transactionTemplate;
-    private final ObjectMapper objectMapper;
     private final Clock clock;
 
     OutboxPoller(OutboxRepository outboxRepository,
                  ApplicationEventPublisher eventPublisher,
                  PlatformTransactionManager txManager,
-                 ObjectMapper objectMapper,
                  Clock clock) {
         this.outboxRepository = outboxRepository;
         this.eventPublisher = eventPublisher;
         this.transactionTemplate = new TransactionTemplate(txManager);
-        this.objectMapper = objectMapper;
         this.clock = clock;
     }
 
@@ -72,7 +70,7 @@ public class OutboxPoller {
     }
 
     private Object toApplicationEvent(OutboxEvent event) throws Exception {
-        JsonNode node = objectMapper.readTree(event.getPayload());
+        JsonNode node = MAPPER.readTree(event.getPayload());
         return switch (event.getEventType()) {
             case "AUCTION_SOLD" -> new AuctionSoldEvent(
                     UUID.fromString(node.get("auctionId").asText()),
