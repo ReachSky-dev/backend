@@ -32,5 +32,6 @@ class AuctionSettlementScheduler implements ApplicationListener<ApplicationReady
     @Override
     public void onApplicationEvent(ApplicationReadyEvent event) {
         lifecycleService.settleDueAuctions(Instant.now());
+        lifecycleService.reconcileListingStatuses();
     }
 }

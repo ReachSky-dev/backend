@@ -2,11 +2,15 @@ package pl.reachsky.backend.auction.application;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pl.reachsky.backend.auction.application.port.in.SettleAuctionUseCase;
 import pl.reachsky.backend.auction.application.port.out.AuctionRepository;
 import pl.reachsky.backend.auction.domain.Auction;
+import pl.reachsky.backend.auction.domain.AuctionStatus;
+import pl.reachsky.backend.platform.outbox.AuctionReserveNotMetEvent;
+import pl.reachsky.backend.platform.outbox.AuctionSoldEvent;
 
 import java.time.Instant;
 import java.util.List;
@@ -18,10 +22,14 @@ public class AuctionLifecycleService {
 
     private final AuctionRepository auctionRepository;
     private final SettleAuctionUseCase settleAuction;
+    private final ApplicationEventPublisher eventPublisher;
 
-    AuctionLifecycleService(AuctionRepository auctionRepository, SettleAuctionUseCase settleAuction) {
+    AuctionLifecycleService(AuctionRepository auctionRepository,
+                             SettleAuctionUseCase settleAuction,
+                             ApplicationEventPublisher eventPublisher) {
         this.auctionRepository = auctionRepository;
         this.settleAuction = settleAuction;
+        this.eventPublisher = eventPublisher;
     }
 
     /**
@@ -34,6 +42,35 @@ public class AuctionLifecycleService {
         for (Auction auction : due) {
             auction.start(now);
             auctionRepository.save(auction);
+        }
+    }
+
+    /**
+     * Re-publishes ApplicationEvents for all already-settled auctions so that
+     * listeners (CloseListingOnAuctionEndedListener, CreateOrderOnAuctionSoldListener)
+     * can catch up after a restart or a deployment that added new listeners.
+     *
+     * Both listeners are idempotent, so duplicate events are safe.
+     */
+    public void reconcileListingStatuses() {
+        List<Auction> ended = auctionRepository.findEnded();
+        for (Auction auction : ended) {
+            try {
+                if (auction.getStatus() == AuctionStatus.SOLD) {
+                    eventPublisher.publishEvent(new AuctionSoldEvent(
+                            auction.getId().value(),
+                            auction.getListingId(),
+                            auction.getWinnerId(),
+                            auction.getCurrentPrice().amountInMinorUnits(),
+                            auction.getCurrentPrice().currency().getCurrencyCode()));
+                } else {
+                    eventPublisher.publishEvent(new AuctionReserveNotMetEvent(
+                            auction.getId().value(),
+                            auction.getListingId()));
+                }
+            } catch (Exception e) {
+                log.warn("Reconciliation failed for auction {}: {}", auction.getId().value(), e.getMessage());
+            }
         }
     }
 
