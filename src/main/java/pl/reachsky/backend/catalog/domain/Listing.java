@@ -58,6 +58,14 @@ public final class Listing {
         this.status = status.renew();
     }
 
+    public void close() {
+        this.status = status.close();
+    }
+
+    public void sell() {
+        this.status = status.sell();
+    }
+
     public ListingId getId() { return id; }
     public UUID getSellerId() { return sellerId; }
     public String getTitle() { return title; }

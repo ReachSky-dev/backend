@@ -56,4 +56,36 @@ class ListingTest {
         assertThatThrownBy(() -> new ResourceWindow(start, end))
                 .isInstanceOf(IllegalArgumentException.class);
     }
+
+    @Test
+    void closeTransitionsActiveToClosedStatus() {
+        Listing listing = active();
+        listing.close();
+        assertThat(listing.getStatus()).isEqualTo(ListingStatus.CLOSED);
+    }
+
+    @Test
+    void sellTransitionsActiveToSoldStatus() {
+        Listing listing = active();
+        listing.sell();
+        assertThat(listing.getStatus()).isEqualTo(ListingStatus.SOLD);
+    }
+
+    @Test
+    void closeOnDraftThrows() {
+        Listing listing = Listing.create(SELLER, "Room", "desc", WINDOW, 1);
+        assertThatThrownBy(listing::close).isInstanceOf(IllegalListingTransition.class);
+    }
+
+    @Test
+    void sellOnDraftThrows() {
+        Listing listing = Listing.create(SELLER, "Room", "desc", WINDOW, 1);
+        assertThatThrownBy(listing::sell).isInstanceOf(IllegalListingTransition.class);
+    }
+
+    private Listing active() {
+        Listing l = Listing.create(SELLER, "Test room", "desc", WINDOW, 1);
+        l.publish();
+        return l;
+    }
 }

@@ -74,11 +74,13 @@ public class OutboxPoller {
         return switch (event.getEventType()) {
             case "AUCTION_SOLD" -> new AuctionSoldEvent(
                     UUID.fromString(node.get("auctionId").asText()),
+                    UUID.fromString(node.get("listingId").asText()),
                     UUID.fromString(node.get("winnerId").asText()),
                     node.get("amountInMinorUnits").asLong(),
                     node.get("currency").asText());
             case "AUCTION_RESERVE_NOT_MET" -> new AuctionReserveNotMetEvent(
-                    UUID.fromString(node.get("auctionId").asText()));
+                    UUID.fromString(node.get("auctionId").asText()),
+                    UUID.fromString(node.get("listingId").asText()));
             default -> throw new IllegalArgumentException("Unknown event type: " + event.getEventType());
         };
     }

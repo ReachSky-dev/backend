@@ -12,6 +12,7 @@ import pl.reachsky.backend.platform.outbox.OutboxRepository;
 import pl.reachsky.backend.shared.NotFoundException;
 
 import java.time.Clock;
+import java.util.UUID;
 
 /**
  * Settles an auction atomically: transitions status to SOLD or RESERVE_NOT_MET,
@@ -49,20 +50,20 @@ public class SettleAuctionService implements SettleAuctionUseCase {
 
         auctionRepository.save(auction);
 
-        OutboxEvent event = buildOutboxEvent(auctionId, result);
+        OutboxEvent event = buildOutboxEvent(auctionId, auction.getListingId(), result);
         outboxRepository.save(event);
 
         return result;
     }
 
-    private OutboxEvent buildOutboxEvent(AuctionId auctionId, SettlementResult result) {
+    private OutboxEvent buildOutboxEvent(AuctionId auctionId, UUID listingId, SettlementResult result) {
         String payload = switch (result) {
             case SettlementResult.Sold sold -> String.format(
-                    "{\"auctionId\":\"%s\",\"winnerId\":\"%s\",\"amountInMinorUnits\":%d,\"currency\":\"%s\"}",
-                    auctionId.value(), sold.winnerId(),
+                    "{\"auctionId\":\"%s\",\"listingId\":\"%s\",\"winnerId\":\"%s\",\"amountInMinorUnits\":%d,\"currency\":\"%s\"}",
+                    auctionId.value(), listingId, sold.winnerId(),
                     sold.amount().amountInMinorUnits(), sold.amount().currency().getCurrencyCode());
             case SettlementResult.ReserveNotMet rnm -> String.format(
-                    "{\"auctionId\":\"%s\"}", auctionId.value());
+                    "{\"auctionId\":\"%s\",\"listingId\":\"%s\"}", auctionId.value(), listingId);
             case SettlementResult.AlreadySettled a -> throw new IllegalStateException("unreachable");
         };
 

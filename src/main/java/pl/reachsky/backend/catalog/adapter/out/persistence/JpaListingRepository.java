@@ -6,6 +6,7 @@ import pl.reachsky.backend.catalog.domain.Listing;
 import pl.reachsky.backend.catalog.domain.ListingId;
 import pl.reachsky.backend.catalog.domain.ListingStatus;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -35,5 +36,11 @@ class JpaListingRepository implements ListingRepository {
         return springRepo.findAllByStatus(status).stream()
                 .map(mapper::toDomain)
                 .toList();
+    }
+
+    @Override
+    public List<Listing> findActiveExpired(Instant now) {
+        return springRepo.findAllByStatusAndWindowEndsAtLessThanEqual(ListingStatus.ACTIVE, now)
+                .stream().map(mapper::toDomain).toList();
     }
 }
