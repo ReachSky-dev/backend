@@ -51,7 +51,7 @@
     "/api/listings" : {
       "get" : {
         "tags" : [ "listing-controller" ],
-        "summary" : "List all active listings",
+        "summary" : "List active listings whose resource window has not yet ended",
         "operationId" : "listActive",
         "responses" : {
           "200" : {
@@ -757,7 +757,7 @@
           "status" : {
             "type" : "string",
             "$ref" : "#/components/schemas/ListingStatus",
-            "enum" : [ "DRAFT", "ACTIVE", "CLOSED" ]
+            "enum" : [ "DRAFT", "ACTIVE", "CLOSED", "SOLD" ]
           },
           "createdAt" : {
             "type" : "string",
