@@ -131,6 +131,45 @@ class ListingControllerIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void renewListing_returns200_withActiveStatus() {
+        UUID id = UUID.randomUUID();
+        jdbcTemplate.update("""
+                INSERT INTO listings (id, seller_id, title, window_starts_at, window_ends_at,
+                    capacity, status, created_at)
+                VALUES (?, gen_random_uuid(), 'Cabin', now(), now() + interval '1 day', 1, 'CLOSED', now())
+                """, id);
+
+        ResponseEntity<ListingResponse> response = client.post()
+                .uri("/api/listings/{id}/renew", id)
+                .retrieve()
+                .toEntity(ListingResponse.class);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        assertThat(response.getBody().status()).isEqualTo(ListingStatus.ACTIVE);
+    }
+
+    @Test
+    void renewActiveListing_returns409() {
+        ListingResponse created = client.post()
+                .uri("/api/listings")
+                .header("Content-Type", "application/json")
+                .body(validRequestBody())
+                .retrieve()
+                .toEntity(ListingResponse.class)
+                .getBody();
+
+        client.post().uri("/api/listings/{id}/publish", created.id()).retrieve().toBodilessEntity();
+
+        ResponseEntity<String> response = client.post()
+                .uri("/api/listings/{id}/renew", created.id())
+                .retrieve()
+                .onStatus(status -> status.value() == 409, (req, res) -> {})
+                .toEntity(String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    }
+
+    @Test
     void publishListingTwice_returns409() {
         ListingResponse created = client.post()
                 .uri("/api/listings")

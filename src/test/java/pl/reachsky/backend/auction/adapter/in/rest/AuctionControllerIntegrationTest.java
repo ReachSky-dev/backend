@@ -207,6 +207,86 @@ class AuctionControllerIntegrationTest extends AbstractIntegrationTest {
         assertThat(response.getBody()).isEmpty();
     }
 
+    @Test
+    void listHistory_returnsEndedAuctions() {
+        insertSoldAuction(sellerId, listingId, UUID.randomUUID());
+
+        ResponseEntity<AuctionResponse[]> response = client.get()
+                .uri("/api/auctions/history")
+                .retrieve()
+                .toEntity(AuctionResponse[].class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).hasSize(1);
+        assertThat(response.getBody()[0].status())
+                .isEqualTo(pl.reachsky.backend.auction.domain.AuctionStatus.SOLD);
+    }
+
+    @Test
+    void listHistory_doesNotReturnRunningAuctions() {
+        client.post()
+                .uri("/api/auctions")
+                .header("Content-Type", "application/json")
+                .body(dutchRequest())
+                .retrieve()
+                .toBodilessEntity();
+
+        ResponseEntity<AuctionResponse[]> response = client.get()
+                .uri("/api/auctions/history")
+                .retrieve()
+                .toEntity(AuctionResponse[].class);
+
+        assertThat(response.getBody()).isEmpty();
+    }
+
+    @Test
+    void listWon_returnsAuctionsWhereCurrentUserIsWinner() {
+        UUID buyerId = UUID.randomUUID();
+        UUID listing2 = insertListing(sellerId);
+        insertSoldAuction(sellerId, listing2, buyerId);
+
+        when(currentUserProvider.get()).thenReturn(
+                new CurrentUser(new UserId(buyerId), "buyer", Set.of("USER")));
+
+        ResponseEntity<AuctionResponse[]> response = client.get()
+                .uri("/api/auctions/won")
+                .retrieve()
+                .toEntity(AuctionResponse[].class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).hasSize(1);
+    }
+
+    @Test
+    void listWon_doesNotReturnAuctionsWonByOthers() {
+        UUID otherBuyer = UUID.randomUUID();
+        UUID listing2 = insertListing(sellerId);
+        insertSoldAuction(sellerId, listing2, otherBuyer);
+
+        ResponseEntity<AuctionResponse[]> response = client.get()
+                .uri("/api/auctions/won")
+                .retrieve()
+                .toEntity(AuctionResponse[].class);
+
+        assertThat(response.getBody()).isEmpty();
+    }
+
+    private void insertSoldAuction(UUID aSellerId, UUID aListingId, UUID winnerId) {
+        jdbcTemplate.update("""
+                INSERT INTO auctions (id, listing_id, seller_id, type, status,
+                    starts_at, ends_at,
+                    start_price_amount, start_price_currency,
+                    min_increment_amount, min_increment_currency,
+                    reserve_price_amount, reserve_price_currency,
+                    current_price_amount, current_price_currency,
+                    bid_count, extensions_used, winner_id, created_at)
+                VALUES (gen_random_uuid(), ?, ?, 'ENGLISH', 'SOLD',
+                    now() - interval '2 days', now() - interval '1 day',
+                    5000, 'PLN', 100, 'PLN', 3000, 'PLN', 6000, 'PLN',
+                    1, 0, ?, now())
+                """, aListingId, aSellerId, winnerId);
+    }
+
     private UUID insertListing(UUID sellerId) {
         UUID id = UUID.randomUUID();
         jdbcTemplate.update("""

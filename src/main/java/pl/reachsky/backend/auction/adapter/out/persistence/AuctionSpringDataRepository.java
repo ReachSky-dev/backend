@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import pl.reachsky.backend.auction.domain.AuctionStatus;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -18,6 +19,10 @@ interface AuctionSpringDataRepository extends JpaRepository<AuctionJpaEntity, UU
     Optional<AuctionJpaEntity> findByIdWithLock(UUID id);
 
     List<AuctionJpaEntity> findAllByStatus(AuctionStatus status);
+
+    List<AuctionJpaEntity> findAllByStatusIn(Collection<AuctionStatus> statuses);
+
+    List<AuctionJpaEntity> findAllByWinnerId(UUID winnerId);
 
     List<AuctionJpaEntity> findAllByListingId(UUID listingId);
 

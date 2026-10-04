@@ -44,4 +44,16 @@ class FindAuctionsService implements FindAuctionsQuery {
     public List<Auction> findBySeller(UUID sellerId) {
         return auctionRepository.findBySellerId(sellerId);
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Auction> findEnded() {
+        return auctionRepository.findEnded();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Auction> findWon(UUID buyerId) {
+        return auctionRepository.findByWinnerId(buyerId);
+    }
 }

@@ -54,6 +54,10 @@ public final class Listing {
         this.status = status.publish();
     }
 
+    public void renew() {
+        this.status = status.renew();
+    }
+
     public ListingId getId() { return id; }
     public UUID getSellerId() { return sellerId; }
     public String getTitle() { return title; }

@@ -9,6 +9,7 @@ import pl.reachsky.backend.auction.domain.AuctionStatus;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Repository
@@ -50,6 +51,20 @@ class JpaAuctionRepository implements AuctionRepository {
     @Override
     public List<Auction> findBySellerId(UUID sellerId) {
         return springRepo.findAllBySellerId(sellerId).stream().map(mapper::toDomain).toList();
+    }
+
+    private static final Set<AuctionStatus> ENDED_STATUSES =
+            Set.of(AuctionStatus.SOLD, AuctionStatus.RESERVE_NOT_MET,
+                   AuctionStatus.CANCELLED, AuctionStatus.SETTLED);
+
+    @Override
+    public List<Auction> findEnded() {
+        return springRepo.findAllByStatusIn(ENDED_STATUSES).stream().map(mapper::toDomain).toList();
+    }
+
+    @Override
+    public List<Auction> findByWinnerId(UUID winnerId) {
+        return springRepo.findAllByWinnerId(winnerId).stream().map(mapper::toDomain).toList();
     }
 
     @Override

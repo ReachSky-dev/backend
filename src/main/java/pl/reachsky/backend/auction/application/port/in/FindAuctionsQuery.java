@@ -16,4 +16,8 @@ public interface FindAuctionsQuery {
     List<Auction> findByListing(UUID listingId);
 
     List<Auction> findBySeller(UUID sellerId);
+
+    List<Auction> findEnded();
+
+    List<Auction> findWon(UUID buyerId);
 }

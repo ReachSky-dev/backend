@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import pl.reachsky.backend.catalog.application.port.in.CreateListingUseCase;
 import pl.reachsky.backend.catalog.application.port.in.FindListingsQuery;
 import pl.reachsky.backend.catalog.application.port.in.PublishListingUseCase;
+import pl.reachsky.backend.catalog.application.port.in.RenewListingUseCase;
 import pl.reachsky.backend.catalog.domain.ListingId;
 import pl.reachsky.backend.catalog.domain.ListingStatus;
 import pl.reachsky.backend.shared.CurrentUserProvider;
@@ -28,15 +29,17 @@ class ListingController {
 
     private final CreateListingUseCase create;
     private final PublishListingUseCase publish;
+    private final RenewListingUseCase renew;
     private final FindListingsQuery find;
     private final ListingWebMapper mapper;
     private final CurrentUserProvider currentUserProvider;
 
     ListingController(CreateListingUseCase create, PublishListingUseCase publish,
-                      FindListingsQuery find, ListingWebMapper mapper,
-                      CurrentUserProvider currentUserProvider) {
+                      RenewListingUseCase renew, FindListingsQuery find,
+                      ListingWebMapper mapper, CurrentUserProvider currentUserProvider) {
         this.create = create;
         this.publish = publish;
+        this.renew = renew;
         this.find = find;
         this.mapper = mapper;
         this.currentUserProvider = currentUserProvider;
@@ -59,6 +62,16 @@ class ListingController {
     @ApiResponse(responseCode = "409", description = "Listing is not in DRAFT state")
     ListingResponse publishListing(@PathVariable UUID id) {
         return mapper.toResponse(publish.publish(new ListingId(id)));
+    }
+
+    @PostMapping("/{id}/renew")
+    @Operation(summary = "Re-activate a CLOSED listing")
+    @ApiResponse(responseCode = "401", description = "Not authenticated")
+    @ApiResponse(responseCode = "403", description = "SELLER role required")
+    @ApiResponse(responseCode = "404", description = "Listing not found")
+    @ApiResponse(responseCode = "409", description = "Listing is not in CLOSED state")
+    ListingResponse renewListing(@PathVariable UUID id) {
+        return mapper.toResponse(renew.renew(new ListingId(id)));
     }
 
     @GetMapping("/{id}")

@@ -67,6 +67,20 @@ class AuctionController {
         return find.findBySeller(sellerId).stream().map(mapper::toResponse).toList();
     }
 
+    @GetMapping("/history")
+    @Operation(summary = "List all ended auctions (SOLD, RESERVE_NOT_MET, CANCELLED, SETTLED)")
+    List<AuctionResponse> listHistory() {
+        return find.findEnded().stream().map(mapper::toResponse).toList();
+    }
+
+    @GetMapping("/won")
+    @Operation(summary = "List auctions won by the current user")
+    @ApiResponse(responseCode = "401", description = "Not authenticated")
+    List<AuctionResponse> listWon() {
+        UUID buyerId = currentUserProvider.get().id().value();
+        return find.findWon(buyerId).stream().map(mapper::toResponse).toList();
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Get auction by ID")
     @ApiResponse(responseCode = "404", description = "Auction not found")

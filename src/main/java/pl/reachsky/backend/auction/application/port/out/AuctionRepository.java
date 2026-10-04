@@ -24,6 +24,10 @@ public interface AuctionRepository {
 
     List<Auction> findBySellerId(UUID sellerId);
 
+    List<Auction> findEnded();
+
+    List<Auction> findByWinnerId(UUID winnerId);
+
     List<Auction> findDueToStart(Instant now);
 
     List<Auction> findDueToEnd(Instant now);
