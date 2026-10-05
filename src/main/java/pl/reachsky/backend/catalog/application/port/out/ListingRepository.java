@@ -7,6 +7,7 @@ import pl.reachsky.backend.catalog.domain.ListingStatus;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 public interface ListingRepository {
 
@@ -19,4 +20,6 @@ public interface ListingRepository {
     List<Listing> findActiveExpired(Instant now);
 
     List<Listing> findAvailable(Instant now);
+
+    List<Listing> findBySellerId(UUID sellerId);
 }

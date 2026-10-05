@@ -57,6 +57,9 @@ class JpaAuctionRepository implements AuctionRepository {
             Set.of(AuctionStatus.SOLD, AuctionStatus.RESERVE_NOT_MET,
                    AuctionStatus.CANCELLED, AuctionStatus.SETTLED);
 
+    private static final Set<AuctionStatus> ACTIVE_STATUSES =
+            Set.of(AuctionStatus.SCHEDULED, AuctionStatus.RUNNING);
+
     @Override
     public List<Auction> findEnded() {
         return springRepo.findAllByStatusIn(ENDED_STATUSES).stream().map(mapper::toDomain).toList();
@@ -77,5 +80,10 @@ class JpaAuctionRepository implements AuctionRepository {
     public List<Auction> findDueToEnd(Instant now) {
         return springRepo.findAllByStatusAndEndsAtLessThanEqual(AuctionStatus.RUNNING, now)
                 .stream().map(mapper::toDomain).toList();
+    }
+
+    @Override
+    public boolean existsActiveByListingId(UUID listingId) {
+        return springRepo.existsByListingIdAndStatusIn(listingId, ACTIVE_STATUSES);
     }
 }

@@ -13,6 +13,7 @@ import pl.reachsky.backend.catalog.domain.ListingStatus;
 import pl.reachsky.backend.platform.outbox.AuctionReserveNotMetEvent;
 import pl.reachsky.backend.platform.outbox.AuctionSoldEvent;
 
+import java.time.Instant;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -24,7 +25,7 @@ class ListingSettlementAndExpiryTest extends AbstractIntegrationTest {
     CloseListingOnAuctionEndedListener listener;
 
     @Autowired
-    CloseExpiredListingsService expiryService;
+    ExpireListingsService expireService;
 
     @Autowired
     ListingRepository listingRepository;
@@ -36,6 +37,8 @@ class ListingSettlementAndExpiryTest extends AbstractIntegrationTest {
     void setUp() {
         jdbcTemplate.execute("TRUNCATE TABLE listings CASCADE");
     }
+
+    // ── settlement ────────────────────────────────────────────────────────────
 
     @Test
     void onAuctionSold_listingBecomesSOLD() {
@@ -56,25 +59,67 @@ class ListingSettlementAndExpiryTest extends AbstractIntegrationTest {
         assertStatus(listingId, ListingStatus.CLOSED);
     }
 
+    // ── expiry ────────────────────────────────────────────────────────────────
+
     @Test
-    void closeExpired_closesActiveListingWithExpiredWindow() {
+    void expireDueListings_expiresActiveListingPastWindowEnd() {
         UUID listingId = insertActiveListing("now() - interval '2 days'", "now() - interval '1 day'");
 
-        expiryService.closeExpired();
+        expireService.expireDueListings(Instant.now());
 
-        assertStatus(listingId, ListingStatus.CLOSED);
+        assertStatus(listingId, ListingStatus.EXPIRED);
     }
 
     @Test
-    void closeExpired_doesNotCloseListingWithFutureWindow() {
+    void expireDueListings_doesNotExpireListingWithFutureWindow() {
         UUID listingId = insertActiveListing("now() + interval '1 day'", "now() + interval '2 days'");
 
-        expiryService.closeExpired();
+        expireService.expireDueListings(Instant.now());
 
         assertStatus(listingId, ListingStatus.ACTIVE);
     }
 
-    // -------------------------------------------------------------------------
+    @Test
+    void expireDueListings_doesNotExpireListingWithRunningAuction() {
+        UUID listingId = insertActiveListing("now() - interval '2 days'", "now() - interval '1 day'");
+        insertAuction(listingId, "RUNNING");
+
+        expireService.expireDueListings(Instant.now());
+
+        assertStatus(listingId, ListingStatus.ACTIVE);
+    }
+
+    @Test
+    void expireDueListings_doesNotExpireListingWithScheduledAuction() {
+        UUID listingId = insertActiveListing("now() - interval '2 days'", "now() - interval '1 day'");
+        insertAuction(listingId, "SCHEDULED");
+
+        expireService.expireDueListings(Instant.now());
+
+        assertStatus(listingId, ListingStatus.ACTIVE);
+    }
+
+    @Test
+    void expireDueListings_isIdempotent() {
+        UUID listingId = insertActiveListing("now() - interval '2 days'", "now() - interval '1 day'");
+
+        expireService.expireDueListings(Instant.now());
+        expireService.expireDueListings(Instant.now());
+
+        assertStatus(listingId, ListingStatus.EXPIRED);
+    }
+
+    @Test
+    void expireDueListings_handlesListingsExpiredWhileAppWasDown() {
+        // Simulates startup reconciliation: listing expired before this call.
+        UUID listingId = insertActiveListing("now() - interval '10 days'", "now() - interval '9 days'");
+
+        expireService.expireDueListings(Instant.now());
+
+        assertStatus(listingId, ListingStatus.EXPIRED);
+    }
+
+    // ── helpers ───────────────────────────────────────────────────────────────
 
     private UUID insertActiveListing(String windowStart, String windowEnd) {
         UUID id = UUID.randomUUID();
@@ -84,6 +129,20 @@ class ListingSettlementAndExpiryTest extends AbstractIntegrationTest {
                 VALUES (?, gen_random_uuid(), 'Test listing', %s, %s, 1, 'ACTIVE', now())
                 """.formatted(windowStart, windowEnd), id);
         return id;
+    }
+
+    private void insertAuction(UUID listingId, String status) {
+        jdbcTemplate.update("""
+                INSERT INTO auctions (id, listing_id, seller_id, type, status,
+                    starts_at, ends_at,
+                    start_price_amount, start_price_currency,
+                    current_price_amount, current_price_currency,
+                    min_increment_amount, min_increment_currency,
+                    reserve_price_amount, reserve_price_currency)
+                VALUES (gen_random_uuid(), ?, gen_random_uuid(), 'ENGLISH', ?,
+                    now() - interval '1 hour', now() + interval '1 day',
+                    10000, 'PLN', 10000, 'PLN', 500, 'PLN', 8000, 'PLN')
+                """, listingId, status);
     }
 
     private void assertStatus(UUID listingId, ListingStatus expected) {

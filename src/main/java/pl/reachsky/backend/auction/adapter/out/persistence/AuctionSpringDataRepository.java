@@ -10,6 +10,7 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 interface AuctionSpringDataRepository extends JpaRepository<AuctionJpaEntity, UUID> {
@@ -31,4 +32,6 @@ interface AuctionSpringDataRepository extends JpaRepository<AuctionJpaEntity, UU
     List<AuctionJpaEntity> findAllByStatusAndStartsAtLessThanEqual(AuctionStatus status, Instant now);
 
     List<AuctionJpaEntity> findAllByStatusAndEndsAtLessThanEqual(AuctionStatus status, Instant now);
+
+    boolean existsByListingIdAndStatusIn(UUID listingId, Set<AuctionStatus> statuses);
 }

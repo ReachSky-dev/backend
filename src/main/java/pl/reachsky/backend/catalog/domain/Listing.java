@@ -66,6 +66,10 @@ public final class Listing {
         this.status = status.sell();
     }
 
+    public void expire() {
+        this.status = status.expire();
+    }
+
     public ListingId getId() { return id; }
     public UUID getSellerId() { return sellerId; }
     public String getTitle() { return title; }

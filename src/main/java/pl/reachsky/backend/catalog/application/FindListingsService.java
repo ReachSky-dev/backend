@@ -11,6 +11,7 @@ import pl.reachsky.backend.catalog.domain.ListingStatus;
 import java.time.Clock;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 class FindListingsService implements FindListingsQuery {
@@ -39,5 +40,11 @@ class FindListingsService implements FindListingsQuery {
     @Transactional(readOnly = true)
     public Optional<Listing> findById(ListingId id) {
         return repository.findById(id);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Listing> findBySeller(UUID sellerId) {
+        return repository.findBySellerId(sellerId);
     }
 }

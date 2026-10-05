@@ -31,4 +31,6 @@ public interface AuctionRepository {
     List<Auction> findDueToStart(Instant now);
 
     List<Auction> findDueToEnd(Instant now);
+
+    boolean existsActiveByListingId(UUID listingId);
 }

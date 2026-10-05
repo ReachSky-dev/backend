@@ -170,6 +170,26 @@ class ListingControllerIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void listActiveListings_doesNotReturnExpiredListings() {
+        UUID id = UUID.randomUUID();
+        jdbcTemplate.update("""
+                INSERT INTO listings (id, seller_id, title, window_starts_at, window_ends_at,
+                    capacity, status, created_at)
+                VALUES (?, gen_random_uuid(), 'Expired cabin',
+                    now() - interval '3 days', now() - interval '2 days',
+                    1, 'EXPIRED', now())
+                """, id);
+
+        ListingResponse[] listings = client.get()
+                .uri("/api/listings")
+                .retrieve()
+                .toEntity(ListingResponse[].class)
+                .getBody();
+
+        assertThat(listings).isEmpty();
+    }
+
+    @Test
     void publishListingTwice_returns409() {
         ListingResponse created = client.post()
                 .uri("/api/listings")

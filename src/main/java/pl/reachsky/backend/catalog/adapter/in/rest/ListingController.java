@@ -89,4 +89,14 @@ class ListingController {
                 .map(mapper::toResponse)
                 .toList();
     }
+
+    @GetMapping("/my")
+    @Operation(summary = "List all listings belonging to the current seller (all statuses)")
+    @ApiResponse(responseCode = "401", description = "Not authenticated")
+    List<ListingResponse> listMy() {
+        UUID sellerId = currentUserProvider.get().id().value();
+        return find.findBySeller(sellerId).stream()
+                .map(mapper::toResponse)
+                .toList();
+    }
 }

@@ -9,6 +9,7 @@ import pl.reachsky.backend.catalog.domain.ListingStatus;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
 class JpaListingRepository implements ListingRepository {
@@ -48,5 +49,11 @@ class JpaListingRepository implements ListingRepository {
     public List<Listing> findAvailable(Instant now) {
         return springRepo.findAllByStatusAndWindowEndsAtGreaterThan(ListingStatus.ACTIVE, now)
                 .stream().map(mapper::toDomain).toList();
+    }
+
+    @Override
+    public List<Listing> findBySellerId(UUID sellerId) {
+        return springRepo.findAllBySellerId(sellerId).stream()
+                .map(mapper::toDomain).toList();
     }
 }
