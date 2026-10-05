@@ -35,6 +35,50 @@ Zmienne środowiskowe (domyślne wartości dopasowane do docker-compose):
 
 ---
 
+## Obraz Docker
+
+Produkowane przez workflow `release.yml` przy każdym pushu na `main`.
+
+**Nazwa na Docker Hub:** `<DOCKERHUB_USERNAME>/backend`
+*(podstaw nazwę użytkownika/organizacji ustawioną w sekrecie `DOCKERHUB_USERNAME`)*
+
+### Schemat tagów
+
+| Tag | Znaczenie |
+|-----|-----------|
+| `<sha>` | Pełny SHA commita (40 znaków) — jedyny tag zdatny do rollbacku |
+| `latest` | Ostatni build z `main` — nigdy nie używać do rollbacku |
+
+### Uruchomienie konkretnej wersji
+
+```bash
+# Konkretna wersja po SHA (zalecane w produkcji)
+docker run -p 8080:8080 \
+  -e DB_URL=jdbc:postgresql://host:5432/reachsky \
+  -e DB_USERNAME=reachsky \
+  -e DB_PASSWORD=secret \
+  <DOCKERHUB_USERNAME>/backend:abc1234...
+
+# Zawsze najnowsza (dla lokalnych testów)
+docker run -p 8080:8080 \
+  -e DB_URL=jdbc:postgresql://host:5432/reachsky \
+  -e DB_USERNAME=reachsky \
+  -e DB_PASSWORD=secret \
+  <DOCKERHUB_USERNAME>/backend:latest
+```
+
+### Metryki obrazu
+
+| | |
+|---|---|
+| Rozmiar (uncompressed) | ~543 MB |
+| Podstawa | `eclipse-temurin:21-jre-jammy` |
+| Użytkownik | `appuser` (non-root) |
+| Health check | `GET /actuator/health` co 30 s, start-period 60 s |
+| Warstwy aplikacji | 4 (layertools) — po pierwszym pushu kolejne wdrożenia przenoszą ~2 MB |
+
+---
+
 ## Testy
 
 ```bash
