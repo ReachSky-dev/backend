@@ -43,6 +43,18 @@ public record Money(long amountInMinorUnits, Currency currency) {
         return amountInMinorUnits == 0;
     }
 
+    public String display() {
+        int digits = currency.getDefaultFractionDigits();
+        if (digits <= 0) {
+            return amountInMinorUnits + " " + currency.getCurrencyCode();
+        }
+        long divisor = 1L;
+        for (int i = 0; i < digits; i++) divisor *= 10;
+        long major = amountInMinorUnits / divisor;
+        long minor = amountInMinorUnits % divisor;
+        return String.format("%d.%0" + digits + "d %s", major, minor, currency.getCurrencyCode());
+    }
+
     private void requireSameCurrency(Money other) {
         if (!this.currency.equals(other.currency)) {
             throw new IllegalArgumentException(

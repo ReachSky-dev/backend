@@ -6,7 +6,6 @@ import pl.reachsky.backend.shared.Money;
 public class BidTooLow extends DomainException {
 
     public BidTooLow(Money attempted, Money required) {
-        super("Bid " + attempted.amountInMinorUnits() + " is below minimum required " + required.amountInMinorUnits()
-                + " " + required.currency().getCurrencyCode());
+        super("Bid " + attempted.display() + " is below minimum required " + required.display());
     }
 }
