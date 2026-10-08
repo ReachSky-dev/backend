@@ -1,0 +1,159 @@
+---
+# site.yml — jednorazowa konfiguracja serwera.
+# Bezpieczny do ponownego uruchomienia: wszystkie zadania są idempotentne.
+#
+# Użycie:
+#   ansible-playbook site.yml
+#   ansible-playbook site.yml --check    # dry run, nic nie zmienia
+#
+# Wymaga: użytkownik SSH z sudo na serwerze.
+
+- name: ReachSky — konfiguracja serwera
+  hosts: prod
+  become: true
+
+  tasks:
+
+    # ── Użytkownik aplikacji ────────────────────────────────────────────────
+    - name: Utwórz grupę aplikacji
+      ansible.builtin.group:
+        name: "{{ app_group }}"
+        state: present
+
+    - name: Utwórz użytkownika aplikacji
+      ansible.builtin.user:
+        name: "{{ app_user }}"
+        group: "{{ app_group }}"
+        groups: docker        # dostęp do demona Docker bez sudo
+        append: true          # nie usuwaj z innych grup
+        shell: /bin/bash
+        create_home: true
+        state: present
+
+    # ── Katalogi ────────────────────────────────────────────────────────────
+    - name: Utwórz katalog główny deploy
+      ansible.builtin.file:
+        path: "{{ deploy_dir }}"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+        mode: "0750"
+
+    - name: Utwórz podkatalogi
+      ansible.builtin.file:
+        path: "{{ deploy_dir }}/{{ item }}"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+        mode: "0750"
+      loop:
+        - init
+        - keycloak
+
+    # ── Pliki statyczne ─────────────────────────────────────────────────────
+    - name: Skopiuj docker-compose.prod.yml
+      ansible.builtin.copy:
+        src: docker-compose.prod.yml
+        dest: "{{ deploy_dir }}/docker-compose.prod.yml"
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+        mode: "0640"
+
+    - name: Skopiuj skrypty init SQL
+      ansible.builtin.copy:
+        src: init/
+        dest: "{{ deploy_dir }}/init/"
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+        mode: "0640"
+
+    - name: Skopiuj realm.json (jeśli istnieje lokalnie)
+      ansible.builtin.copy:
+        src: keycloak/realm.json
+        dest: "{{ deploy_dir }}/keycloak/realm.json"
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+        mode: "0640"
+      # Zadanie pomija się jeśli plik nie istnieje — nie failuje.
+      failed_when: false
+      ignore_errors: true
+      register: realm_copy
+
+    - name: Ostrzeżenie — brak realm.json
+      ansible.builtin.debug:
+        msg: >
+          UWAGA: deploy/keycloak/realm.json nie istnieje lokalnie.
+          Keycloak wystartuje bez importu realmu. Wróć do README pkt 3.
+      when: realm_copy is failed or realm_copy is skipped
+
+    - name: Utwórz .deployed_tags (jeśli nie istnieje)
+      ansible.builtin.copy:
+        content: '{"current":{"backend_tag":"none","frontend_tag":"none"},"previous":{"backend_tag":"none","frontend_tag":"none"}}'
+        dest: "{{ deploy_dir }}/.deployed_tags"
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+        mode: "0640"
+        force: false      # nie nadpisuj jeśli plik już istnieje
+
+    # ── UFW ─────────────────────────────────────────────────────────────────
+    # KOLEJNOŚĆ MA ZNACZENIE: SSH allow musi być dodane przed ustawieniem
+    # polityki deny, żeby nie odciąć aktywnego połączenia.
+    #
+    # UWAGA na Docker + UFW:
+    # Docker zarządza regułami iptables samodzielnie i pomija UFW
+    # dla portów opublikowanych przez kontenery (sekcja ports:).
+    # Nasze docker-compose.prod.yml nie ma żadnej sekcji ports: —
+    # cały ruch wychodzi przez cloudflared (outbound). Dzięki temu UFW
+    # działa poprawnie dla naszej konfiguracji.
+    #
+    # Jeśli kiedykolwiek dodasz ports: do compose, UFW NIE zablokuje
+    # tego portu. Rozwiązanie: https://github.com/chaifeng/ufw-docker
+    # lub bind: "127.0.0.1:PORT:PORT" zamiast samego "PORT:PORT".
+
+    - name: UFW — zainstaluj (jeśli brak)
+      ansible.builtin.package:
+        name: ufw
+        state: present
+
+    - name: UFW — zezwól SSH z sieci lokalnej (ZAWSZE PIERWSZY KROK)
+      community.general.ufw:
+        rule: allow
+        port: "22"
+        proto: tcp
+        src: "{{ local_network_cidr }}"
+        comment: "SSH z sieci lokalnej"
+
+    - name: UFW — zablokuj port 80 inbound
+      community.general.ufw:
+        rule: deny
+        port: "80"
+        proto: tcp
+        comment: "HTTP — dostęp tylko przez Cloudflare Tunnel"
+
+    - name: UFW — zablokuj port 443 inbound
+      community.general.ufw:
+        rule: deny
+        port: "443"
+        proto: tcp
+        comment: "HTTPS — dostęp tylko przez Cloudflare Tunnel"
+
+    - name: UFW — ustaw politykę domyślną incoming=deny, outgoing=allow
+      community.general.ufw:
+        policy: "{{ item.policy }}"
+        direction: "{{ item.direction }}"
+      loop:
+        - { policy: deny,  direction: incoming }
+        - { policy: allow, direction: outgoing }
+
+    - name: UFW — włącz (lub reload jeśli już włączony)
+      community.general.ufw:
+        state: enabled
+
+    - name: UFW — pokaż aktualny stan reguł
+      ansible.builtin.command: ufw status verbose
+      changed_when: false
+      register: ufw_status
+
+    - name: UFW — wyświetl stan
+      ansible.builtin.debug:
+        msg: "{{ ufw_status.stdout_lines }}"

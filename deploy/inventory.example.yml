@@ -1,0 +1,10 @@
+# Skopiuj ten plik jako inventory.yml i uzupełnij wartości.
+# inventory.yml jest gitignorowany — nie commituj prawdziwego adresu serwera.
+all:
+  children:
+    prod:
+      hosts:
+        reachsky-prod:
+          ansible_host: 192.168.1.XX          # adres lokalny serwera
+          ansible_user: TWOJ_UZYTKOWNIK_SSH    # user z sudo na serwerze
+          ansible_ssh_private_key_file: ~/.ssh/id_reachsky

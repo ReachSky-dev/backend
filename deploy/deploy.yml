@@ -1,0 +1,149 @@
+---
+# deploy.yml — wdrożenie nowej wersji obrazów.
+#
+# Użycie:
+#   ansible-playbook deploy.yml -e "backend_tag=<sha> frontend_tag=<sha>"
+#
+# Zmienne backend_tag i frontend_tag są wymagane.
+# Bez podania: domyślnie "latest" (NIEZALECANE w produkcji — używaj SHA).
+#
+# Przepływ:
+#   1. Odczytaj poprzednie tagi z .deployed_tags (potrzebne do auto-rollbacku)
+#   2. Zapisz .env z sekretami i nowymi tagami (tryb 0600)
+#   3. docker compose pull + up -d
+#   4. Czekaj na "healthy" backendu (max health_retries * health_delay_seconds)
+#   5a. Sukces: zaktualizuj .deployed_tags
+#   5b. Błąd: cofnij do poprzednich tagów i zakończ z błędem
+
+- name: ReachSky — wdrożenie
+  hosts: prod
+  become: true
+  gather_facts: false
+
+  vars:
+    backend_tag:  "{{ backend_tag  | default('latest') }}"
+    frontend_tag: "{{ frontend_tag | default('latest') }}"
+
+  tasks:
+
+    # ── 1. Poprzednie tagi ─────────────────────────────────────────────────
+    - name: Odczytaj .deployed_tags
+      ansible.builtin.slurp:
+        src: "{{ deploy_dir }}/.deployed_tags"
+      register: _deployed_raw
+      failed_when: false
+
+    - name: Parsuj poprzednie tagi
+      ansible.builtin.set_fact:
+        _prev: >-
+          {{
+            (_deployed_raw.content | b64decode | from_json).current
+            if (_deployed_raw is not failed and _deployed_raw.content is defined)
+            else {"backend_tag": "none", "frontend_tag": "none"}
+          }}
+
+    - name: Pokaż co wdrażamy
+      ansible.builtin.debug:
+        msg:
+          - "Nowe:      backend={{ backend_tag }}, frontend={{ frontend_tag }}"
+          - "Poprzedni: backend={{ _prev.backend_tag }}, frontend={{ _prev.frontend_tag }}"
+
+    # ── 2. .env ────────────────────────────────────────────────────────────
+    - name: Zapisz .env (tryb 0600 — tylko właściciel)
+      ansible.builtin.template:
+        src: templates/env.j2
+        dest: "{{ deploy_dir }}/.env"
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+        mode: "0600"
+
+    # ── 3. Pull + up ────────────────────────────────────────────────────────
+    - name: docker compose pull
+      ansible.builtin.command:
+        cmd: >
+          docker compose
+          --env-file {{ deploy_dir }}/.env
+          -f {{ deploy_dir }}/docker-compose.prod.yml
+          pull
+      changed_when: true
+
+    - name: docker compose up -d
+      ansible.builtin.command:
+        cmd: >
+          docker compose
+          --env-file {{ deploy_dir }}/.env
+          -f {{ deploy_dir }}/docker-compose.prod.yml
+          up -d
+      changed_when: true
+
+    # ── 4. Health check z auto-rollbackiem ─────────────────────────────────
+    - name: Sprawdź zdrowie backendu
+      block:
+
+        - name: Czekaj na backend healthy
+          ansible.builtin.command:
+            # {% raw %}{{.State.Health.Status}}{% endraw %} — format Go template, nie Jinja2.
+            cmd: >
+              docker inspect
+              {% raw %}--format={{.State.Health.Status}}{% endraw %}
+              {{ compose_project }}-backend-1
+          register: _health
+          retries: "{{ health_retries }}"
+          delay:   "{{ health_delay_seconds }}"
+          until:   _health.stdout == "healthy"
+          changed_when: false
+          failed_when:  _health.rc != 0 and _health.attempts | default(0) >= health_retries
+
+        - name: Zaktualizuj .deployed_tags po udanym deploy
+          ansible.builtin.copy:
+            content: >-
+              {{
+                {
+                  "current":  {"backend_tag": backend_tag,        "frontend_tag": frontend_tag},
+                  "previous": {"backend_tag": _prev.backend_tag,  "frontend_tag": _prev.frontend_tag}
+                } | to_nice_json
+              }}
+            dest: "{{ deploy_dir }}/.deployed_tags"
+            owner: "{{ app_user }}"
+            group: "{{ app_group }}"
+            mode: "0640"
+
+        - name: Deploy zakończony sukcesem
+          ansible.builtin.debug:
+            msg: "OK — backend={{ backend_tag }}, frontend={{ frontend_tag }}"
+
+      rescue:
+        # ── Auto-rollback ─────────────────────────────────────────────────
+        - name: "ROLLBACK — health check nieudany"
+          ansible.builtin.debug:
+            msg:
+              - "Health check nieudany po {{ health_retries }} próbach."
+              - "Wracam do: backend={{ _prev.backend_tag }}, frontend={{ _prev.frontend_tag }}"
+              - "Logi: docker logs {{ compose_project }}-backend-1 --tail 50"
+
+        - name: Rollback — przywróć .env z poprzednimi tagami
+          ansible.builtin.template:
+            src: templates/env.j2
+            dest: "{{ deploy_dir }}/.env"
+            owner: "{{ app_user }}"
+            group: "{{ app_group }}"
+            mode: "0600"
+          vars:
+            backend_tag:  "{{ _prev.backend_tag }}"
+            frontend_tag: "{{ _prev.frontend_tag }}"
+
+        - name: Rollback — docker compose up z poprzednimi tagami
+          ansible.builtin.command:
+            cmd: >
+              docker compose
+              --env-file {{ deploy_dir }}/.env
+              -f {{ deploy_dir }}/docker-compose.prod.yml
+              up -d
+          changed_when: true
+
+        - name: Rollback — zakończ playbook błędem
+          ansible.builtin.fail:
+            msg: >
+              Deploy NIEUDANY. Auto-rollback do backend={{ _prev.backend_tag }},
+              frontend={{ _prev.frontend_tag }}.
+              Sprawdź logi: docker logs {{ compose_project }}-backend-1 --tail 100

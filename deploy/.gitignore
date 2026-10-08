@@ -1,0 +1,7 @@
+# inventory.yml zawiera adres IP serwera — nie commituj do publicznego repo.
+# inventory.local.yml (localhost, brak wrażliwych danych) jest commitowany.
+inventory.yml
+
+# Niezaszyfrowany vault — NIGDY nie commituj.
+# Zaszyfrowana wersja (po ansible-vault encrypt) trafia do repo.
+group_vars/prod/vault.yml

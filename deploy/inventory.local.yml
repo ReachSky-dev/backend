@@ -1,0 +1,9 @@
+# Inventory dla self-hosted GitHub Actions runner uruchomionego na serwerze.
+# Użycie: ansible-playbook -i inventory.local.yml deploy.yml
+all:
+  children:
+    prod:
+      hosts:
+        reachsky-prod:
+          ansible_connection: local
+          ansible_host: localhost

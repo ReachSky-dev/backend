@@ -1,0 +1,106 @@
+---
+# rollback.yml — ręczny rollback do wskazanego lub poprzedniego tagu.
+#
+# Kiedy używać:
+#   - problem wyszedł godzinę po deploy (auto-rollback w deploy.yml już nie pomoże)
+#   - chcesz wrócić do konkretnego SHA bez uruchamiania nowego deploy
+#
+# Użycie:
+#   # Rollback do poprzedniego tagu (zapisanego w .deployed_tags):
+#   ansible-playbook rollback.yml
+#
+#   # Rollback do konkretnego SHA:
+#   ansible-playbook rollback.yml -e "backend_tag=abc123 frontend_tag=def456"
+#
+#   # Rollback tylko backendu (frontend bez zmian z .deployed_tags):
+#   ansible-playbook rollback.yml -e "backend_tag=abc123"
+
+- name: ReachSky — ręczny rollback
+  hosts: prod
+  become: true
+  gather_facts: false
+
+  tasks:
+
+    # ── Wczytaj aktualny stan ───────────────────────────────────────────────
+    - name: Odczytaj .deployed_tags
+      ansible.builtin.slurp:
+        src: "{{ deploy_dir }}/.deployed_tags"
+      register: _deployed_raw
+
+    - name: Parsuj .deployed_tags
+      ansible.builtin.set_fact:
+        _deployed: "{{ _deployed_raw.content | b64decode | from_json }}"
+
+    # ── Ustal tagi docelowe ─────────────────────────────────────────────────
+    # Priorytet: parametr z -e > .deployed_tags.previous
+    - name: Ustaw tagi rollbacku
+      ansible.builtin.set_fact:
+        _rollback_backend:  "{{ backend_tag  | default(_deployed.previous.backend_tag)  }}"
+        _rollback_frontend: "{{ frontend_tag | default(_deployed.previous.frontend_tag) }}"
+
+    - name: Pokaż plan rollbacku
+      ansible.builtin.debug:
+        msg:
+          - "Aktualnie uruchomione: backend={{ _deployed.current.backend_tag }}, frontend={{ _deployed.current.frontend_tag }}"
+          - "Rollback do:          backend={{ _rollback_backend }},  frontend={{ _rollback_frontend }}"
+
+    - name: Fail jeśli poprzedni tag to 'none' i nie podano -e
+      ansible.builtin.fail:
+        msg: >
+          .deployed_tags.previous zawiera 'none' — brak historii poprzedniego deploy.
+          Podaj tagi ręcznie: -e "backend_tag=<sha> frontend_tag=<sha>"
+      when: >
+        (backend_tag  is not defined and _rollback_backend  == 'none') or
+        (frontend_tag is not defined and _rollback_frontend == 'none')
+
+    # ── Wykonaj rollback ────────────────────────────────────────────────────
+    - name: Zapisz .env z tagami rollbacku
+      ansible.builtin.template:
+        src: templates/env.j2
+        dest: "{{ deploy_dir }}/.env"
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+        mode: "0600"
+      vars:
+        backend_tag:  "{{ _rollback_backend }}"
+        frontend_tag: "{{ _rollback_frontend }}"
+
+    - name: docker compose up z tagami rollbacku
+      ansible.builtin.command:
+        cmd: >
+          docker compose
+          --env-file {{ deploy_dir }}/.env
+          -f {{ deploy_dir }}/docker-compose.prod.yml
+          up -d
+      changed_when: true
+
+    - name: Czekaj na backend healthy po rollbacku
+      ansible.builtin.command:
+        cmd: >
+          docker inspect
+          {% raw %}--format={{.State.Health.Status}}{% endraw %}
+          {{ compose_project }}-backend-1
+      register: _health
+      retries: "{{ health_retries }}"
+      delay:   "{{ health_delay_seconds }}"
+      until:   _health.stdout == "healthy"
+      changed_when: false
+
+    - name: Zaktualizuj .deployed_tags po rollbacku
+      ansible.builtin.copy:
+        content: >-
+          {{
+            {
+              "current":  {"backend_tag": _rollback_backend,               "frontend_tag": _rollback_frontend},
+              "previous": {"backend_tag": _deployed.current.backend_tag,   "frontend_tag": _deployed.current.frontend_tag}
+            } | to_nice_json
+          }}
+        dest: "{{ deploy_dir }}/.deployed_tags"
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+        mode: "0640"
+
+    - name: Rollback zakończony
+      ansible.builtin.debug:
+        msg: "OK — rollback do backend={{ _rollback_backend }}, frontend={{ _rollback_frontend }}"

@@ -1,0 +1,9 @@
+# PRZYKŁAD struktury vault.yml.
+# Skopiuj jako vault.yml, uzupełnij wartości, zaszyfruj:
+#   ansible-vault encrypt group_vars/prod/vault.yml
+#
+# NIGDY nie commituj niezaszyfrowanego vault.yml.
+
+vault_db_password: ""
+vault_kc_admin_password: ""
+vault_cloudflare_tunnel_token: ""

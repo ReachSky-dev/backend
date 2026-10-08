@@ -1,0 +1,33 @@
+# Zmienne jawne (nie tajne). Tajne wartości są w vault.yml.
+# Konwencja: vault_* prefiks w vault.yml, tu tylko referencje przez {{ vault_* }}.
+
+# ── Serwer ──────────────────────────────────────────────────────────────────
+deploy_dir: /opt/reachsky
+app_user:   reachsky
+app_group:  reachsky
+
+# CIDR sieci lokalnej, z której dozwolone jest SSH.
+# Zmień jeśli Twoja sieć domowa ma inną podsieć.
+local_network_cidr: "192.168.1.0/24"
+
+# ── Compose ──────────────────────────────────────────────────────────────────
+# Nazwa projektu Docker Compose — wpływa na nazwy kontenerów:
+# reachsky-backend-1, reachsky-postgres-1 itd.
+compose_project: reachsky
+
+# ── Health check ─────────────────────────────────────────────────────────────
+# Łącznie max: health_retries * health_delay_seconds = 300 s = 5 minut.
+health_retries:       20
+health_delay_seconds: 15
+
+# ── Docker Hub ───────────────────────────────────────────────────────────────
+dockerhub_username: reachsky-dev
+
+# ── OIDC ─────────────────────────────────────────────────────────────────────
+oidc_client_id: reachsky-frontend
+
+# ── Sekrety (wartości z vault.yml) ───────────────────────────────────────────
+db_username:              reachsky
+db_password:              "{{ vault_db_password }}"
+kc_admin_password:        "{{ vault_kc_admin_password }}"
+cloudflare_tunnel_token:  "{{ vault_cloudflare_tunnel_token }}"
