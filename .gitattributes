@@ -1,2 +1,19 @@
-/mvnw text eol=lf
-*.cmd text eol=crlf
+# Domyślnie każdy plik tekstowy: normalizuj do LF w repo, checkout wg OS.
+* text=auto eol=lf
+
+# Skrypty muszą mieć LF — nawet na Windows (wykonują się w kontenerach).
+*.sh   text eol=lf
+*.bash text eol=lf
+
+# Maven wrapper — LF, bo wykonywany w Linuksie/kontenerze.
+mvnw   text eol=lf
+
+# Windows batch — CRLF, bo wykonywany tylko na Windows.
+*.cmd  text eol=crlf
+*.bat  text eol=crlf
+
+# Binaria — bez konwersji.
+*.jar  binary
+*.png  binary
+*.jpg  binary
+*.ico  binary

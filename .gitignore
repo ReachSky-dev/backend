@@ -38,4 +38,4 @@ build/
 !.env.example
 !deploy/.env.example
 CLAUDE.local.md
-.claude/
+.claude/settings.local.json
