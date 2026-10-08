@@ -1,0 +1,130 @@
+# Compose produkcyjny — dostęp przez Cloudflare Tunnel, brak wystawionych portów.
+#
+# Wymagany plik .env w tym samym katalogu (patrz .env.example).
+# Katalog keycloak/ musi zawierać plik realm.json wyeksportowany z lokalnej instancji KC.
+#
+# Uruchomienie:
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# Aktualizacja obrazów:
+#   BACKEND_TAG=<sha> FRONTEND_TAG=<sha> docker compose -f docker-compose.prod.yml up -d --pull always
+
+services:
+
+  # ── Baza danych ────────────────────────────────────────────────────────────
+  # Jeden kontener PostgreSQL obsługuje dwie bazy: reachsky i keycloak.
+  # Uzasadnienie: jeden backup job, jeden wolumen, wspólny cykl życia.
+  # Baza keycloak tworzona przez init/01-keycloak-db.sql przy pierwszym starcie.
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: reachsky
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d reachsky"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - internal
+
+  # ── Keycloak ───────────────────────────────────────────────────────────────
+  # Tryb start (nie start-dev) — JPA cache, brak wbudowanego H2.
+  # Stan realmu trzymany w postgres.keycloak — przeżywa restart kontenera.
+  # Konto admina pochodzi wyłącznie ze zmiennych KEYCLOAK_ADMIN_*.
+  # Realm importowany z keycloak/realm.json przy pierwszym starcie (--import-realm
+  # pomija import, jeśli realm już istnieje).
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0.7
+    restart: unless-stopped
+    command: ["start", "--import-realm"]
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: ${DB_USERNAME}
+      KC_DB_PASSWORD: ${DB_PASSWORD}
+      KC_HOSTNAME: https://auth.reachsky.pl
+      KC_HTTP_ENABLED: "true"
+      KC_PROXY_HEADERS: xforwarded
+      KC_HEALTH_ENABLED: "true"
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD}
+    volumes:
+      - ./keycloak:/opt/keycloak/data/import:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      # KC 23+ images include curl. Port 9000 = management interface (health/metrics).
+      # start_period 120s — pierwsze uruchomienie obejmuje migracje DB i import realmu.
+      test: ["CMD-SHELL", "curl -fs http://localhost:9000/health/ready || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 6
+      start_period: 120s
+    networks:
+      - internal
+
+  # ── Backend ────────────────────────────────────────────────────────────────
+  # Obraz z Docker Hub, tag ze zmiennej BACKEND_TAG.
+  # HEALTHCHECK zdefiniowany w Dockerfile (wget /actuator/health) — wystarczy dla
+  # depends_on: condition: service_healthy niżej w cloudflared.
+  # SERVER_FORWARD_HEADERS_STRATEGY: Spring widzi X-Forwarded-Proto=https od Cloudflare.
+  backend:
+    image: ${DOCKERHUB_USERNAME}/backend:${BACKEND_TAG}
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:postgresql://postgres:5432/reachsky
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: https://auth.reachsky.pl/realms/reachsky
+      SERVER_FORWARD_HEADERS_STRATEGY: framework
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    networks:
+      - internal
+
+  # ── Frontend ───────────────────────────────────────────────────────────────
+  # Obraz z Docker Hub (produkowany przez workflow release frontendu).
+  # Zmienne środowiskowe muszą być obsługiwane przez runtime env injection
+  # (envsubst w nginx lub Next.js runtime config) — nie baked-in przy buildzie.
+  frontend:
+    image: ${DOCKERHUB_USERNAME}/frontend:${FRONTEND_TAG}
+    restart: unless-stopped
+    environment:
+      API_URL: https://api.reachsky.pl
+      OIDC_AUTHORITY: https://auth.reachsky.pl/realms/reachsky
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}
+    networks:
+      - internal
+
+  # ── Cloudflare Tunnel ──────────────────────────────────────────────────────
+  # Jedyne "wyjście na świat" — połączenie outbound do Cloudflare.
+  # Żaden kontener nie ma sekcji ports:.
+  # Routing: reachsky.pl → frontend:80, api.reachsky.pl → backend:8080,
+  #           auth.reachsky.pl → keycloak:8080 — konfigurowane w dashboardzie CF.
+  cloudflared:
+    image: cloudflare/cloudflared:2024.10.0
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+    networks:
+      - internal
+
+networks:
+  internal:
+    driver: bridge
+
+volumes:
+  postgres_data:

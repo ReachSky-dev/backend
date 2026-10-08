@@ -35,5 +35,7 @@ build/
 ### Sensitive / local ###
 .DS_Store
 .env*
+!.env.example
+!deploy/.env.example
 CLAUDE.local.md
 .claude/
