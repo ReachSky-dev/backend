@@ -12,7 +12,7 @@
 #   # Rollback do konkretnego SHA:
 #   ansible-playbook rollback.yml -e "backend_tag=abc123 frontend_tag=def456"
 #
-#   # Rollback tylko backendu (frontend bez zmian z .deployed_tags):
+#   # Rollback tylko backendu (frontend bez zmian):
 #   ansible-playbook rollback.yml -e "backend_tag=abc123"
 
 - name: ReachSky — ręczny rollback
@@ -23,14 +23,31 @@
   tasks:
 
     # ── Wczytaj aktualny stan ───────────────────────────────────────────────
+    # BUG FIX: poprzednia wersja failowała natychmiast jeśli .deployed_tags
+    # nie istniał (brak failed_when: false). Teraz: graceful fallback.
     - name: Odczytaj .deployed_tags
       ansible.builtin.slurp:
         src: "{{ deploy_dir }}/.deployed_tags"
       register: _deployed_raw
+      failed_when: false
 
+    # BUG FIX: from_json na uszkodzonym JSON dawał cryptic Jinja2 error.
+    # Teraz: ignore_errors + fallback do pustego stanu.
     - name: Parsuj .deployed_tags
       ansible.builtin.set_fact:
         _deployed: "{{ _deployed_raw.content | b64decode | from_json }}"
+      when: _deployed_raw is not failed
+      ignore_errors: true
+      register: _parse_result
+
+    - name: Ustaw pusty stan (brak pliku lub uszkodzony JSON)
+      ansible.builtin.set_fact:
+        _deployed:
+          current:  {backend_tag: "none", frontend_tag: "none"}
+          previous: {backend_tag: "none", frontend_tag: "none"}
+      when: >
+        (_deployed_raw is failed) or
+        (_parse_result is defined and _parse_result is failed)
 
     # ── Ustal tagi docelowe ─────────────────────────────────────────────────
     # Priorytet: parametr z -e > .deployed_tags.previous
@@ -42,14 +59,15 @@
     - name: Pokaż plan rollbacku
       ansible.builtin.debug:
         msg:
-          - "Aktualnie uruchomione: backend={{ _deployed.current.backend_tag }}, frontend={{ _deployed.current.frontend_tag }}"
-          - "Rollback do:          backend={{ _rollback_backend }},  frontend={{ _rollback_frontend }}"
+          - "Aktualnie: backend={{ _deployed.current.backend_tag }}, frontend={{ _deployed.current.frontend_tag }}"
+          - "Rollback do: backend={{ _rollback_backend }}, frontend={{ _rollback_frontend }}"
 
     - name: Fail jeśli poprzedni tag to 'none' i nie podano -e
       ansible.builtin.fail:
         msg: >
-          .deployed_tags.previous zawiera 'none' — brak historii poprzedniego deploy.
+          Brak historii w .deployed_tags (previous="none") i nie podano tagów przez -e.
           Podaj tagi ręcznie: -e "backend_tag=<sha> frontend_tag=<sha>"
+          SHA znajdziesz na: hub.docker.com/r/{{ dockerhub_username }}/backend/tags
       when: >
         (backend_tag  is not defined and _rollback_backend  == 'none') or
         (frontend_tag is not defined and _rollback_frontend == 'none')
@@ -92,8 +110,8 @@
         content: >-
           {{
             {
-              "current":  {"backend_tag": _rollback_backend,               "frontend_tag": _rollback_frontend},
-              "previous": {"backend_tag": _deployed.current.backend_tag,   "frontend_tag": _deployed.current.frontend_tag}
+              "current":  {"backend_tag": _rollback_backend,              "frontend_tag": _rollback_frontend},
+              "previous": {"backend_tag": _deployed.current.backend_tag,  "frontend_tag": _deployed.current.frontend_tag}
             } | to_nice_json
           }}
         dest: "{{ deploy_dir }}/.deployed_tags"

@@ -183,6 +183,10 @@ SHA commitów znajdziesz w zakładce "Actions" → job "Release" → sekcja "Job
 Jeśli health check nie przejdzie w ciągu 5 minut, `deploy.yml` sam wraca
 do poprzednich tagów i kończy się błędem. Nie musisz nic robić.
 
+Wyjątek: **pierwszy deploy** — nie ma poprzedniej wersji. Playbook kończy się błędem
+z komunikatem "brak poprzedniej wersji do przywrócenia". Napraw problem i uruchom
+`deploy.yml` ponownie.
+
 ### Ręczny — rollback do poprzedniego tagu
 
 Kiedy problem wyszedł godzinę po wdrożeniu i health był zielony:
@@ -211,6 +215,120 @@ ansible prod -m ansible.builtin.slurp \
   -a "src=/opt/reachsky/.deployed_tags" | \
   python3 -c "import sys,base64,json; d=json.load(sys.stdin); \
   print(json.dumps(json.loads(base64.b64decode(d['reachsky-prod']['content'])), indent=2))"
+```
+
+### Rollback o dwie wersje wstecz (lub dowolny SHA)
+
+`.deployed_tags` trzyma tylko jeden poziom historii (poprzedni deploy).
+Jeśli chcesz cofnąć się dalej, musisz podać SHA ręcznie.
+
+**Skąd wziąć SHA:**
+
+```bash
+# 1. Z historii git:
+git log --oneline -10
+
+# 2. Z Docker Hub (obrazy tagowane SHA commita):
+#    https://hub.docker.com/r/reachsky-dev/backend/tags
+#    Kliknij "Tags", szukaj SHA z git log
+
+# 3. Z GitHub Actions — Actions → Release → Job summary → "Tag SHA"
+```
+
+Gdy masz SHA:
+```bash
+ansible-playbook rollback.yml \
+  -e "backend_tag=<sha-sprzed-dwoch-wersji> frontend_tag=<sha-sprzed-dwoch-wersji>"
+```
+
+---
+
+## Co zrobić gdy deploy padnie w połowie
+
+Ansible jest deterministyczny — każde zadanie wiesz po nazwie, które zawiodło.
+Możliwe scenariusze:
+
+### Po `docker compose pull`, przed `up -d`
+
+Obrazy są pobrane, kontenery wciąż na starej wersji. Stan serwera jest **spójny** —
+stare kontenery dalej działają. Możesz bezpiecznie uruchomić `deploy.yml` ponownie.
+
+### Po `up -d`, health check nie przechodzi
+
+`deploy.yml` automatycznie cofa do poprzedniego tagu (rescue block).
+Sprawdź logi wypisane przez playbook, lub:
+
+```bash
+ansible prod -m ansible.builtin.command \
+  -a "docker logs reachsky-backend-1 --tail 100"
+```
+
+### Rescue block (auto-rollback) też padł
+
+Serwer jest w niespójnym stanie. Wejdź przez SSH i napraw ręcznie:
+
+```bash
+ssh -i ~/.ssh/id_reachsky TWOJ_USER@192.168.1.XX
+
+# Sprawdź stan kontenerów
+docker ps -a
+
+# Przywróć poprzedni tag ręcznie — edytuj BACKEND_TAG w .env:
+nano /opt/reachsky/.env
+
+# Uruchom kontenery ze starymi tagami:
+docker compose -f /opt/reachsky/docker-compose.prod.yml \
+  --env-file /opt/reachsky/.env up -d
+
+# Sprawdź czy backend wstał:
+docker inspect --format='{{.State.Health.Status}}' reachsky-backend-1
+```
+
+Po naprawie ręcznej zaktualizuj `.deployed_tags` ręcznie lub uruchom `rollback.yml -e "backend_tag=..."`.
+
+---
+
+## Weryfikacja po wdrożeniu
+
+Po udanym `deploy.yml` sprawdź z laptopa:
+
+```bash
+# 1. Backend przez tunel:
+curl -s https://api.reachsky.pl/actuator/health | python3 -m json.tool
+# Oczekiwane: {"status": "UP", ...}
+
+# 2. Frontend:
+curl -I https://reachsky.pl
+# Oczekiwane: HTTP/2 200
+
+# 3. Keycloak realm endpoint:
+curl -s https://auth.reachsky.pl/realms/reachsky | python3 -m json.tool
+# Oczekiwane: {"realm": "reachsky", ...}
+
+# 4. Kontenery na serwerze (przez Ansible):
+ansible prod -m ansible.builtin.command \
+  -b -a "docker ps --format 'table {{.Names}}\t{{.Status}}'"
+# Oczekiwane: wszystkie kontenery "Up X minutes (healthy)"
+
+# 5. Aktualne tagi wdrożone na serwerze:
+ansible prod -m ansible.builtin.slurp \
+  -a "src=/opt/reachsky/.deployed_tags" | \
+  python3 -c "import sys,base64,json; \
+  d=json.load(sys.stdin)['reachsky-prod']; \
+  print(json.dumps(json.loads(base64.b64decode(d['content'])), indent=2))"
+```
+
+### Weryfikacja przez tunel w deploy.yml (opcjonalnie)
+
+Gdy Cloudflare Tunnel jest skonfigurowany, włącz automatyczną weryfikację publicznego URL:
+
+```bash
+# Jednorazowo — zmień w group_vars/prod/vars.yml:
+#   verify_public: true
+
+# Albo podaj jako parametr:
+ansible-playbook deploy.yml \
+  -e "backend_tag=<sha> frontend_tag=<sha> verify_public=true"
 ```
 
 ---

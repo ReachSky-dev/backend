@@ -20,6 +20,11 @@ compose_project: reachsky
 health_retries:       20
 health_delay_seconds: 15
 
+# Weryfikacja przez publiczny URL po deploy (wymaga działającego tunelu CF).
+# Ustaw na true gdy tunel jest skonfigurowany. Przy pierwszym deploy zostaw false.
+verify_public:    false
+public_health_url: "https://api.reachsky.pl/actuator/health"
+
 # ── Docker Hub ───────────────────────────────────────────────────────────────
 dockerhub_username: reachsky-dev
 

@@ -4,7 +4,7 @@
 #
 # Użycie:
 #   ansible-playbook site.yml
-#   ansible-playbook site.yml --check    # dry run, nic nie zmienia
+#   ansible-playbook site.yml --check --diff    # dry run, nic nie zmienia
 #
 # Wymaga: użytkownik SSH z sudo na serwerze.
 
@@ -74,8 +74,9 @@
         owner: "{{ app_user }}"
         group: "{{ app_group }}"
         mode: "0640"
-      # Zadanie pomija się jeśli plik nie istnieje — nie failuje.
-      failed_when: false
+      # BUG FIX: tylko ignore_errors — pozwala realm_copy.failed być True gdy pliku brak.
+      # Poprzednia wersja miała failed_when: false, co zawsze ustawiało failed=False
+      # i ostrzeżenie poniżej nigdy się nie pokazywało.
       ignore_errors: true
       register: realm_copy
 
@@ -83,12 +84,16 @@
       ansible.builtin.debug:
         msg: >
           UWAGA: deploy/keycloak/realm.json nie istnieje lokalnie.
-          Keycloak wystartuje bez importu realmu. Wróć do README pkt 3.
-      when: realm_copy is failed or realm_copy is skipped
+          Keycloak wystartuje bez importu realmu. Wróć do README — Krok 5.
+      when: realm_copy is failed
 
     - name: Utwórz .deployed_tags (jeśli nie istnieje)
       ansible.builtin.copy:
-        content: '{"current":{"backend_tag":"none","frontend_tag":"none"},"previous":{"backend_tag":"none","frontend_tag":"none"}}'
+        content: >-
+          {{ {
+            "current":  {"backend_tag": "none", "frontend_tag": "none"},
+            "previous": {"backend_tag": "none", "frontend_tag": "none"}
+          } | to_nice_json }}
         dest: "{{ deploy_dir }}/.deployed_tags"
         owner: "{{ app_user }}"
         group: "{{ app_group }}"
