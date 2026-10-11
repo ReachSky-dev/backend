@@ -4,36 +4,175 @@ Wdrożenie przez Ansible + Cloudflare Tunnel na serwer domowy za NAT.
 Żaden port (80/443) nie jest wystawiony na router — ruch wychodzi tylko
 przez `cloudflared`.
 
+Model: jednorazowy bootstrap z serwera → self-hosted runner → CI/CD wdraża.
+
 ---
 
-## Wymagania wstępne
+## FAZA A — Bootstrap z serwera (jednorazowo)
 
-### Na laptopie (maszyna z której uruchamiasz Ansible)
+Ansible działa lokalnie na serwerze (`ansible_connection: local`).
+Nie potrzeba laptopa — wystarczy dostęp SSH i sudo.
+
+### A.1 — Przygotuj zaszyfrowane vault.yml w repo
+
+Na **dowolnej maszynie** (laptop, inny serwer) — przed klonowaniem:
 
 ```bash
-# 1. Python 3.10+
-python3 --version
+cd deploy/
 
-# 2. Ansible (core 2.15+)
-pip3 install --user ansible
+# prod
+cp group_vars/prod/vault.example.yml group_vars/prod/vault.yml
+nano group_vars/prod/vault.yml      # wypełnij wszystkie pola
+ansible-vault encrypt group_vars/prod/vault.yml
+git add --force group_vars/prod/vault.yml
 
-# Weryfikacja:
-ansible --version   # powinno pokazać ansible [core 2.15.x]
+# demo
+cp group_vars/demo/vault.example.yml group_vars/demo/vault.yml
+nano group_vars/demo/vault.yml
+ansible-vault encrypt group_vars/demo/vault.yml
+git add --force group_vars/demo/vault.yml
 
-# 3. Kolekcja community.general (zawiera moduł ufw)
+git commit -m "chore(deploy): add encrypted vaults"
+git push
+```
+
+### A.2 — Na serwerze: zainstaluj zależności
+
+SSH na serwer, następnie:
+
+```bash
+# Python i Ansible (Ubuntu 24.04)
+sudo apt update
+sudo apt install -y python3 python3-pip ansible git
+
+# Kolekcja community.general (moduł UFW)
 ansible-galaxy collection install community.general
 ```
 
-### Na serwerze
+### A.3 — Sklonuj repo i skonfiguruj vault password
 
-- Ubuntu 24.04 LTS (x86_64)
-- Docker Engine + Docker Compose plugin (już zainstalowane)
-- Użytkownik SSH z `sudo` (bez hasła lub z hasłem — patrz niżej)
-- Serwer w tej samej sieci lokalnej co laptop (SSH przez LAN)
+```bash
+git clone https://github.com/ReachSky-dev/backend.git /opt/reachsky-repo
+cd /opt/reachsky-repo
+
+# Hasło do odszyfrowania vault.yml — trzymaj poza repo
+echo "TWOJE_HASLO_VAULTA" > ~/.vault_pass_reachsky
+chmod 600 ~/.vault_pass_reachsky
+```
+
+### A.4 — Uruchom site.yml lokalnie
+
+```bash
+cd /opt/reachsky-repo/deploy
+
+# Dry run:
+ansible-playbook -i inventory.local.yml site.yml --check --diff
+
+# Właściwe uruchomienie — konfiguruje oba środowiska:
+ansible-playbook -i inventory.local.yml site.yml
+
+# Lub tylko jedno środowisko:
+ansible-playbook -i inventory.local.yml site.yml -l prod
+ansible-playbook -i inventory.local.yml site.yml -l demo
+```
+
+`site.yml` zainstaluje Ansible i kolekcje system-wide (potrzebne dla runnera),
+stworzy użytkownika `reachsky`, skonfiguruje katalogi i UFW.
+
+Weryfikacja UFW działa poprawnie w trybie lokalnym — `SSH_CLIENT` jest puste,
+sprawdzenie CIDR jest pomijane.
+
+### A.5 — Pierwsze wdrożenie (ręczne, przed uruchomieniem CI/CD)
+
+```bash
+cd /opt/reachsky-repo/deploy
+
+ansible-playbook -i inventory.local.yml deploy.yml -l demo \
+  -e "backend_tag=<SHA> frontend_tag=<SHA>"
+
+ansible-playbook -i inventory.local.yml deploy.yml -l prod \
+  -e "backend_tag=<SHA> frontend_tag=<SHA>"
+```
+
+SHA znajdziesz: `git -C /opt/reachsky-repo log --oneline -5`
 
 ---
 
-## Pierwsze uruchomienie — krok po kroku
+## FAZA B — Self-hosted runner (jednorazowo po bootstrapie)
+
+### B.1 — Pobierz token rejestracyjny z GitHub
+
+GitHub → repo → **Settings → Actions → Runners → New self-hosted runner**
+→ Linux → skopiuj wartość po `--token` z wyświetlonej komendy konfiguracyjnej.
+
+Token jest jednorazowy, wygasa po 1h.
+
+### B.2 — Uruchom runner.yml
+
+```bash
+cd /opt/reachsky-repo/deploy
+
+ansible-playbook -i inventory.local.yml runner.yml \
+  -e "runner_token=<TOKEN-Z-GITHUB>"
+```
+
+Playbook:
+- tworzy użytkownika `github-runner` (bez dostępu do danych aplikacji)
+- pobiera i instaluje runner binary
+- rejestruje runner z etykietą `self-hosted,linux,reachsky`
+- instaluje jako usługę systemd
+
+### B.3 — Weryfikacja
+
+```bash
+# Czy usługa działa:
+systemctl status "actions.runner.*"
+
+# Czy widoczny w GitHub:
+# GitHub → repo → Settings → Actions → Runners
+# Status: Idle (zielona kropka)
+```
+
+---
+
+## FAZA C — GitHub: sekrety i środowiska (jednorazowo)
+
+### C.1 — Sekret repozytorium
+
+| Sekret | Wartość | Gdzie |
+|--------|---------|-------|
+| `VAULT_PASSWORD` | hasło do ansible-vault | repo → Settings → Secrets → Actions |
+
+Już istniejące sekrety (z release.yml) — zostawiasz bez zmian:
+`DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`
+
+### C.2 — Zmienna repozytorium
+
+| Zmienna | Wartość | Gdzie |
+|---------|---------|-------|
+| `FRONTEND_TAG` | SHA ostatniego obrazu frontendu | repo → Settings → Variables → Actions |
+
+Aktualizowana przez CI frontendu lub ręcznie przy każdym deploy frontendu.
+
+### C.3 — Środowiska GitHub
+
+W repo → **Settings → Environments** utwórz dwa środowiska:
+
+**`demo`** — bez ochrony (wdraża automatycznie):
+- Create environment → nazwa: `demo`
+- Nie dodawaj Required reviewers
+
+**`production`** — z ręczną akceptacją:
+- Create environment → nazwa: `production`
+- Required reviewers → dodaj siebie
+- (opcjonalnie) Deployment branches → Only selected branches → `main`
+
+Po skonfigurowaniu: każdy push na `main` → Release → Deploy demo automatycznie
+→ GitHub czeka na Twoją akceptację → Deploy prod.
+
+---
+
+## Pierwsze uruchomienie — krok po kroku (tryb z laptopa, alternatywny)
 
 ### Krok 1 — Klucz SSH
 

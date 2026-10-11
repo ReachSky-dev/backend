@@ -15,6 +15,19 @@
 
   tasks:
 
+    # ── Zależności systemowe ──────────────────────────────────────────────────
+    # Ansible i community.general muszą być dostępne dla self-hosted runnera.
+    # Instalujemy system-wide (jako root) — runner user może je wywołać bez sudo.
+    - name: Zainstaluj Ansible
+      ansible.builtin.package:
+        name: ansible
+        state: present
+
+    - name: Zainstaluj kolekcję community.general
+      ansible.builtin.command:
+        cmd: ansible-galaxy collection install community.general --upgrade
+      changed_when: false
+
     # ── Użytkownik aplikacji ──────────────────────────────────────────────────
     # Jeden użytkownik dla obu środowisk — docker group daje dostęp do demona.
     - name: Utwórz grupę aplikacji

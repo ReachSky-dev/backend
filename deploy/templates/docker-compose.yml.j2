@@ -86,7 +86,7 @@ services:
   # JAVA_TOOL_OPTIONS: JVM respektuje limit kontenera zamiast brać całą pamięć hosta.
   # -XX:MaxRAMPercentage={{ jvm_max_ram_pct }} → max {{ (mem_backend | regex_replace('m','') | int * jvm_max_ram_pct / 100) | int }} MB heap.
   backend:
-    image: ${DOCKERHUB_USERNAME}/backend:${BACKEND_TAG}
+    image: ${DOCKERHUB_USERNAME}/reachsky-backend:${BACKEND_TAG}
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: prod
@@ -110,7 +110,7 @@ services:
 
   # ── Frontend ─────────────────────────────────────────────────────────────────
   frontend:
-    image: ${DOCKERHUB_USERNAME}/frontend:${FRONTEND_TAG}
+    image: ${DOCKERHUB_USERNAME}/reachsky-frontend:${FRONTEND_TAG}
     restart: unless-stopped
     environment:
       API_URL:       {{ url_api }}
