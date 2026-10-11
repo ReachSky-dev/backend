@@ -1,0 +1,37 @@
+# Konfiguracja środowiska demo — wartości jawne (nie tajne).
+# Celowo niższe limity RAM — demo służy do rollback/restore drill, nie do ruchu.
+# Wartości tajne: group_vars/demo/vault.yml (zaszyfrowane ansible-vault).
+
+# ── Tożsamość środowiska ──────────────────────────────────────────────────────
+env_name: demo
+
+# ── Połączenie SSH ────────────────────────────────────────────────────────────
+ansible_host:                 "{{ vault_ansible_host }}"
+ansible_user:                 reachsky
+ansible_ssh_private_key_file: ~/.ssh/id_reachsky
+
+# ── Adresy publiczne ──────────────────────────────────────────────────────────
+url_frontend: "https://demo.reachsky.pl"
+url_api:      "https://demo-api.reachsky.pl"
+url_auth:     "https://demo-auth.reachsky.pl"
+
+# ── Weryfikacja po deploy ─────────────────────────────────────────────────────
+verify_public:     false
+public_health_url: "{{ url_api }}/actuator/health"
+
+# ── Limity pamięci kontenerów ─────────────────────────────────────────────────
+# Razem: ~680 MB. Demo ma mniejszy heap, ale pełną izolację od prod.
+mem_postgres:    "256m"
+mem_keycloak:    "512m"
+mem_backend:     "384m"
+mem_frontend:    "64m"
+mem_cloudflared: "64m"
+
+# ── JVM ───────────────────────────────────────────────────────────────────────
+# 75% z 384 MB limitu kontenera = ~288 MB heap.
+jvm_max_ram_pct: 75.0
+
+# ── Sekrety (referencje do vault.yml) ────────────────────────────────────────
+db_password:             "{{ vault_db_password }}"
+kc_admin_password:       "{{ vault_kc_admin_password }}"
+cloudflare_tunnel_token: "{{ vault_cloudflare_tunnel_token }}"

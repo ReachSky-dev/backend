@@ -1,9 +1,13 @@
-# PRZYKŁAD struktury vault.yml.
+# PRZYKŁAD struktury vault.yml dla środowiska prod.
 # Skopiuj jako vault.yml, uzupełnij wartości, zaszyfruj:
+#   cd deploy/
 #   ansible-vault encrypt group_vars/prod/vault.yml
 #
-# NIGDY nie commituj niezaszyfrowanego vault.yml.
+# Po zaszyfrowaniu dodaj do repo:
+#   git add --force group_vars/prod/vault.yml
 
-vault_db_password: ""
-vault_kc_admin_password: ""
-vault_cloudflare_tunnel_token: ""
+vault_ansible_host:            ""   # IP serwera w sieci lokalnej (np. 192.168.1.10)
+vault_local_network_cidr:      ""   # CIDR sieci lokalnej (np. 192.168.1.0/24) — reguła SSH w UFW
+vault_db_password:             ""   # silne hasło PostgreSQL
+vault_kc_admin_password:       ""   # hasło panelu /admin Keycloaka
+vault_cloudflare_tunnel_token: ""   # token tunelu prod (Zero Trust → Tunnels)

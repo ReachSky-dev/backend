@@ -1,38 +1,39 @@
-# Zmienne jawne (nie tajne). Tajne wartości są w vault.yml.
-# Konwencja: vault_* prefiks w vault.yml, tu tylko referencje przez {{ vault_* }}.
+# Konfiguracja środowiska prod — wartości jawne (nie tajne).
+# Wartości tajne: group_vars/prod/vault.yml (zaszyfrowane ansible-vault).
 
-# ── Serwer ──────────────────────────────────────────────────────────────────
-deploy_dir: /opt/reachsky
-app_user:   reachsky
-app_group:  reachsky
+# ── Tożsamość środowiska ──────────────────────────────────────────────────────
+env_name: prod
 
-# CIDR sieci lokalnej, z której dozwolone jest SSH.
-# Zmień jeśli Twoja sieć domowa ma inną podsieć.
-local_network_cidr: "192.168.1.0/24"
+# ── Połączenie SSH ────────────────────────────────────────────────────────────
+# ansible_host pochodzi z vault — adres IP serwera nie trafia do repo w plaintext.
+ansible_host:                 "{{ vault_ansible_host }}"
+ansible_user:                 reachsky
+ansible_ssh_private_key_file: ~/.ssh/id_reachsky
 
-# ── Compose ──────────────────────────────────────────────────────────────────
-# Nazwa projektu Docker Compose — wpływa na nazwy kontenerów:
-# reachsky-backend-1, reachsky-postgres-1 itd.
-compose_project: reachsky
+# ── Adresy publiczne ──────────────────────────────────────────────────────────
+url_frontend: "https://reachsky.pl"
+url_api:      "https://api.reachsky.pl"
+url_auth:     "https://auth.reachsky.pl"
 
-# ── Health check ─────────────────────────────────────────────────────────────
-# Łącznie max: health_retries * health_delay_seconds = 300 s = 5 minut.
-health_retries:       20
-health_delay_seconds: 15
+# ── Weryfikacja po deploy ─────────────────────────────────────────────────────
+# Zmień na true po skonfigurowaniu tunelu Cloudflare.
+verify_public:     false
+public_health_url: "{{ url_api }}/actuator/health"
 
-# Weryfikacja przez publiczny URL po deploy (wymaga działającego tunelu CF).
-# Ustaw na true gdy tunel jest skonfigurowany. Przy pierwszym deploy zostaw false.
-verify_public:    false
-public_health_url: "https://api.reachsky.pl/actuator/health"
+# ── Limity pamięci kontenerów ─────────────────────────────────────────────────
+# Razem: ~1050 MB. Serwer 8 GB — prod + demo (~1700 MB) + observability (~700 MB) = ~2400 MB.
+mem_postgres:    "512m"
+mem_keycloak:    "768m"
+mem_backend:     "512m"
+mem_frontend:    "128m"
+mem_cloudflared: "64m"
 
-# ── Docker Hub ───────────────────────────────────────────────────────────────
-dockerhub_username: reachsky-dev
+# ── JVM ───────────────────────────────────────────────────────────────────────
+# 75% z 512 MB limitu kontenera = ~384 MB heap.
+# Margines na metaspace, GC overhead, JVM internals: ~128 MB.
+jvm_max_ram_pct: 75.0
 
-# ── OIDC ─────────────────────────────────────────────────────────────────────
-oidc_client_id: reachsky-frontend
-
-# ── Sekrety (wartości z vault.yml) ───────────────────────────────────────────
-db_username:              reachsky
-db_password:              "{{ vault_db_password }}"
-kc_admin_password:        "{{ vault_kc_admin_password }}"
-cloudflare_tunnel_token:  "{{ vault_cloudflare_tunnel_token }}"
+# ── Sekrety (referencje do vault.yml) ────────────────────────────────────────
+db_password:             "{{ vault_db_password }}"
+kc_admin_password:       "{{ vault_kc_admin_password }}"
+cloudflare_tunnel_token: "{{ vault_cloudflare_tunnel_token }}"

@@ -6,33 +6,30 @@
 #   - chcesz wrócić do konkretnego SHA bez uruchamiania nowego deploy
 #
 # Użycie:
-#   # Rollback do poprzedniego tagu (zapisanego w .deployed_tags):
-#   ansible-playbook rollback.yml
+#   # Rollback do poprzedniego tagu (z .deployed_tags):
+#   ansible-playbook rollback.yml -l prod
+#   ansible-playbook rollback.yml -l demo
 #
 #   # Rollback do konkretnego SHA:
-#   ansible-playbook rollback.yml -e "backend_tag=abc123 frontend_tag=def456"
+#   ansible-playbook rollback.yml -l prod -e "backend_tag=abc123 frontend_tag=def456"
 #
-#   # Rollback tylko backendu (frontend bez zmian):
-#   ansible-playbook rollback.yml -e "backend_tag=abc123"
+#   # Rollback tylko backendu:
+#   ansible-playbook rollback.yml -l demo -e "backend_tag=abc123"
 
-- name: ReachSky — ręczny rollback
-  hosts: prod
+- name: "ReachSky — ręczny rollback ({{ env_name }})"
+  hosts: all
   become: true
   gather_facts: false
 
   tasks:
 
-    # ── Wczytaj aktualny stan ───────────────────────────────────────────────
-    # BUG FIX: poprzednia wersja failowała natychmiast jeśli .deployed_tags
-    # nie istniał (brak failed_when: false). Teraz: graceful fallback.
+    # ── Wczytaj aktualny stan ─────────────────────────────────────────────────
     - name: Odczytaj .deployed_tags
       ansible.builtin.slurp:
         src: "{{ deploy_dir }}/.deployed_tags"
       register: _deployed_raw
       failed_when: false
 
-    # BUG FIX: from_json na uszkodzonym JSON dawał cryptic Jinja2 error.
-    # Teraz: ignore_errors + fallback do pustego stanu.
     - name: Parsuj .deployed_tags
       ansible.builtin.set_fact:
         _deployed: "{{ _deployed_raw.content | b64decode | from_json }}"
@@ -49,8 +46,7 @@
         (_deployed_raw is failed) or
         (_parse_result is defined and _parse_result is failed)
 
-    # ── Ustal tagi docelowe ─────────────────────────────────────────────────
-    # Priorytet: parametr z -e > .deployed_tags.previous
+    # ── Ustal tagi docelowe ───────────────────────────────────────────────────
     - name: Ustaw tagi rollbacku
       ansible.builtin.set_fact:
         _rollback_backend:  "{{ backend_tag  | default(_deployed.previous.backend_tag)  }}"
@@ -59,7 +55,8 @@
     - name: Pokaż plan rollbacku
       ansible.builtin.debug:
         msg:
-          - "Aktualnie: backend={{ _deployed.current.backend_tag }}, frontend={{ _deployed.current.frontend_tag }}"
+          - "Środowisko: {{ env_name }}"
+          - "Aktualnie:  backend={{ _deployed.current.backend_tag }}, frontend={{ _deployed.current.frontend_tag }}"
           - "Rollback do: backend={{ _rollback_backend }}, frontend={{ _rollback_frontend }}"
 
     - name: Fail jeśli poprzedni tag to 'none' i nie podano -e
@@ -72,7 +69,7 @@
         (backend_tag  is not defined and _rollback_backend  == 'none') or
         (frontend_tag is not defined and _rollback_frontend == 'none')
 
-    # ── Wykonaj rollback ────────────────────────────────────────────────────
+    # ── Wykonaj rollback ──────────────────────────────────────────────────────
     - name: Zapisz .env z tagami rollbacku
       ansible.builtin.template:
         src: templates/env.j2
@@ -89,7 +86,7 @@
         cmd: >
           docker compose
           --env-file {{ deploy_dir }}/.env
-          -f {{ deploy_dir }}/docker-compose.prod.yml
+          -f {{ deploy_dir }}/docker-compose.yml
           up -d
       changed_when: true
 
@@ -110,8 +107,8 @@
         content: >-
           {{
             {
-              "current":  {"backend_tag": _rollback_backend,              "frontend_tag": _rollback_frontend},
-              "previous": {"backend_tag": _deployed.current.backend_tag,  "frontend_tag": _deployed.current.frontend_tag}
+              "current":  {"backend_tag": _rollback_backend,             "frontend_tag": _rollback_frontend},
+              "previous": {"backend_tag": _deployed.current.backend_tag, "frontend_tag": _deployed.current.frontend_tag}
             } | to_nice_json
           }}
         dest: "{{ deploy_dir }}/.deployed_tags"
@@ -121,4 +118,4 @@
 
     - name: Rollback zakończony
       ansible.builtin.debug:
-        msg: "OK — rollback do backend={{ _rollback_backend }}, frontend={{ _rollback_frontend }}"
+        msg: "OK [{{ env_name }}] — rollback do backend={{ _rollback_backend }}, frontend={{ _rollback_frontend }}"

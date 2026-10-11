@@ -1,0 +1,28 @@
+# Wartości wspólne dla wszystkich środowisk.
+# Nie zawiera wartości tajnych — te są w group_vars/{env}/vault.yml.
+# env_name MUSI być zdefiniowany w group_vars/{env}/vars.yml.
+
+# ── Serwer ────────────────────────────────────────────────────────────────────
+app_user:   reachsky
+app_group:  reachsky
+deploy_base: /opt/reachsky
+# vault_local_network_cidr pochodzi z group_vars/{env}/vault.yml
+# (zdradza topologię sieci — nie commituj w plaintext)
+local_network_cidr: "{{ vault_local_network_cidr }}"
+
+# ── Zmienne pochodne (obliczane z env_name) ───────────────────────────────────
+# Każde środowisko dostaje własny katalog, projekt compose i użytkownika bazy.
+deploy_dir:      "{{ deploy_base }}/{{ env_name }}"
+compose_project: "reachsky-{{ env_name }}"
+db_username:     "reachsky_{{ env_name }}"
+
+# ── Docker Hub ────────────────────────────────────────────────────────────────
+dockerhub_username: reachsky-dev
+
+# ── OIDC ──────────────────────────────────────────────────────────────────────
+oidc_client_id: reachsky-frontend
+
+# ── Health check ──────────────────────────────────────────────────────────────
+# Łącznie max: health_retries * health_delay_seconds = 300 s = 5 minut.
+health_retries:       20
+health_delay_seconds: 15

@@ -1,0 +1,17 @@
+# inventory.yml — środowiska i hosty.
+# Commitowany — nie zawiera wrażliwych danych.
+# ansible_host pochodzi z vault_ansible_host w group_vars/{env}/vault.yml.
+#
+# Użycie:
+#   ansible-playbook site.yml  -l prod    # konfiguracja serwera — tylko prod
+#   ansible-playbook deploy.yml -l demo   # wdrożenie — tylko demo
+#   ansible-playbook site.yml             # oba środowiska naraz (idempotentne)
+
+all:
+  children:
+    prod:
+      hosts:
+        reachsky-prod:
+    demo:
+      hosts:
+        reachsky-demo:

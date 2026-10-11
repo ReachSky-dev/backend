@@ -1,0 +1,13 @@
+# PRZYKŁAD struktury vault.yml dla środowiska demo.
+# Skopiuj jako vault.yml, uzupełnij wartości, zaszyfruj:
+#   cd deploy/
+#   ansible-vault encrypt group_vars/demo/vault.yml
+#
+# Po zaszyfrowaniu dodaj do repo:
+#   git add --force group_vars/demo/vault.yml
+
+vault_ansible_host:            ""   # IP serwera w sieci lokalnej (ten sam co prod)
+vault_local_network_cidr:      ""   # CIDR sieci lokalnej (np. 192.168.0.0/24) — reguła SSH w UFW
+vault_db_password:             ""   # OSOBNE hasło — nigdy nie kopiuj z prod
+vault_kc_admin_password:       ""   # OSOBNE hasło — nigdy nie kopiuj z prod
+vault_cloudflare_tunnel_token: ""   # token tunelu demo (Zero Trust → Tunnels → drugi tunel)

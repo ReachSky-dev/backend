@@ -417,21 +417,158 @@ grep -n '"password"' keycloak/realm.json
 
 ```
 deploy/
-├── ansible.cfg                    — konfiguracja Ansible (vault path, inventory)
-├── inventory.example.yml          — szablon; skopiuj jako inventory.yml
-├── inventory.yml                  — GITIGNOROWANY (zawiera IP serwera)
-├── inventory.local.yml            — dla self-hosted runner (localhost)
-├── group_vars/prod/
-│   ├── vars.yml                   — konfiguracja jawna
-│   ├── vault.example.yml          — struktura vaultu (puste wartości)
-│   └── vault.yml                  — GITIGNOROWANY niezaszyfrowany;
-│                                    po encrypt trafia do repo
+├── ansible.cfg                        — konfiguracja Ansible (vault path, inventory)
+├── inventory.yml                      — COMMITOWANY; ansible_host w vault
+├── inventory.local.yml                — dla self-hosted runner (localhost)
+├── group_vars/
+│   ├── all/
+│   │   └── vars.yml                   — wartości wspólne (app_user, deploy_base, itp.)
+│   ├── prod/
+│   │   ├── vars.yml                   — konfiguracja prod (env_name, URL, limity RAM)
+│   │   ├── vault.example.yml          — struktura vaultu (puste wartości)
+│   │   └── vault.yml                  — GITIGNOROWANY niezaszyfrowany;
+│   │                                    po encrypt: git add --force ...
+│   └── demo/
+│       ├── vars.yml                   — konfiguracja demo (env_name, URL, limity RAM)
+│       ├── vault.example.yml          — struktura vaultu (puste wartości)
+│       └── vault.yml                  — GITIGNOROWANY niezaszyfrowany;
+│                                        po encrypt: git add --force ...
 ├── templates/
-│   └── env.j2                     — szablon .env generowanego przez Ansible
-├── site.yml                       — jednorazowa konfiguracja serwera
-├── deploy.yml                     — wdrożenie z auto-rollbackiem
-├── rollback.yml                   — ręczny rollback
-├── docker-compose.prod.yml        — definicja kontenerów
-├── init/01-keycloak-db.sql        — tworzy bazę keycloak (raz)
-└── keycloak/realm.json            — eksport realmu (do dodania przez Ciebie)
+│   ├── docker-compose.yml.j2          — szablon compose (generowany przez site.yml)
+│   └── env.j2                         — szablon .env (generowany przez deploy.yml)
+├── site.yml                           — jednorazowa konfiguracja serwera
+├── deploy.yml                         — wdrożenie z auto-rollbackiem
+├── rollback.yml                       — ręczny rollback
+├── init/01-keycloak-db.sql            — tworzy bazę keycloak (raz)
+└── keycloak/
+    ├── prod/realm.json                — eksport realmu prod (do dodania przez Ciebie)
+    └── demo/realm.json                — eksport realmu demo (do dodania przez Ciebie)
+```
+
+---
+
+## Jak dodać trzecie środowisko
+
+Zakładamy nowe środowisko o nazwie `staging`.
+
+### Krok 1 — Skonfiguruj tunel w Cloudflare
+
+W panelu Zero Trust → Tunnels utwórz nowy tunel `reachsky-staging`.
+Dodaj trasy:
+- `staging.reachsky.pl` → `frontend:80`
+- `staging-api.reachsky.pl` → `backend:8080`
+- `staging-auth.reachsky.pl` → `keycloak:8080`
+
+Skopiuj token tunelu.
+
+### Krok 2 — Utwórz group_vars
+
+```bash
+cd deploy/
+mkdir -p group_vars/staging keycloak/staging
+
+# Skopiuj vault.example jako punkt startowy
+cp group_vars/demo/vault.example.yml group_vars/staging/vault.example.yml
+cp group_vars/demo/vault.example.yml group_vars/staging/vault.yml
+```
+
+Edytuj `group_vars/staging/vault.yml` — wstaw prawdziwe wartości:
+
+```yaml
+vault_ansible_host:            "192.168.1.XX"   # ten sam serwer
+vault_db_password:             "<wygeneruj: openssl rand -base64 32>"
+vault_kc_admin_password:       "<wygeneruj: openssl rand -base64 32>"
+vault_cloudflare_tunnel_token: "<token z kroku 1>"
+```
+
+Zaszyfruj:
+```bash
+ansible-vault encrypt group_vars/staging/vault.yml
+git add --force group_vars/staging/vault.yml
+```
+
+### Krok 3 — Utwórz vars.yml
+
+Utwórz `group_vars/staging/vars.yml`. Minimalna zawartość:
+
+```yaml
+env_name: staging
+
+ansible_host:                 "{{ vault_ansible_host }}"
+ansible_user:                 reachsky
+ansible_ssh_private_key_file: ~/.ssh/id_reachsky
+
+url_frontend: "https://staging.reachsky.pl"
+url_api:      "https://staging-api.reachsky.pl"
+url_auth:     "https://staging-auth.reachsky.pl"
+
+verify_public:     false
+public_health_url: "{{ url_api }}/actuator/health"
+
+# Limity RAM — dostosuj do dostępnych zasobów
+mem_postgres:    "256m"
+mem_keycloak:    "512m"
+mem_backend:     "384m"
+mem_frontend:    "64m"
+mem_cloudflared: "64m"
+
+jvm_max_ram_pct: 75.0
+
+db_password:             "{{ vault_db_password }}"
+kc_admin_password:       "{{ vault_kc_admin_password }}"
+cloudflare_tunnel_token: "{{ vault_cloudflare_tunnel_token }}"
+```
+
+### Krok 4 — Dodaj host do inventory.yml
+
+```yaml
+all:
+  children:
+    prod:
+      hosts:
+        reachsky-prod:
+    demo:
+      hosts:
+        reachsky-demo:
+    staging:                   # ← dodaj ten blok
+      hosts:
+        reachsky-staging:
+```
+
+### Krok 5 — Realm Keycloak
+
+Wyeksportuj realm ze środowiska źródłowego i umieść w:
+```
+deploy/keycloak/staging/realm.json
+```
+
+Sprawdź checklistę „Realm — checklistа przed commitem" w tym pliku.
+
+### Krok 6 — Skonfiguruj serwer
+
+```bash
+cd deploy/
+ansible-playbook site.yml -l staging
+```
+
+### Krok 7 — Pierwsze wdrożenie
+
+```bash
+ansible-playbook deploy.yml -l staging \
+  -e "backend_tag=<sha> frontend_tag=<sha>"
+```
+
+### Weryfikacja
+
+```bash
+# Sprawdź kontenery (przez Ansible):
+ansible staging -m ansible.builtin.command \
+  -b -a "docker ps --format 'table {{.Names}}\t{{.Status}}'"
+
+# Oczekiwane nazwy kontenerów:
+# reachsky-staging-postgres-1    Up X minutes (healthy)
+# reachsky-staging-keycloak-1    Up X minutes (healthy)
+# reachsky-staging-backend-1     Up X minutes (healthy)
+# reachsky-staging-frontend-1    Up X minutes (healthy)
+# reachsky-staging-cloudflared-1 Up X minutes
 ```
