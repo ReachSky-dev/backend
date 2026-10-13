@@ -57,15 +57,20 @@ jobs:
             "${IMAGE}:${{ github.sha }}" | sed 's/[^@]*@//')
           echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
 
+      - name: Sprawdź digest — zatrzymaj przy pustym
+        run: |
+          if [ -z "${{ steps.push.outputs.digest }}" ]; then
+            echo "::error::Digest jest pusty — docker inspect nie zwrócił RepoDigests po push."
+            exit 1
+          fi
+
       - name: Wyzwól deploy w repo infra
         uses: peter-evans/repository-dispatch@v3
         with:
           token:          ${{ secrets.INFRA_DISPATCH_TOKEN }}
           repository:     ReachSky-dev/infra
           event-type:     deploy-backend
-          client-payload: >-
-            {"digest": "${{ steps.push.outputs.digest }}",
-             "commit": "${{ github.sha }}"}
+          client-payload: '{"digest": "${{ steps.push.outputs.digest }}", "commit": "${{ github.sha }}"}'
 
       - name: Job summary
         run: |
