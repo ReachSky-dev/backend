@@ -24,6 +24,9 @@ FROM eclipse-temurin:21-jre-jammy AS runtime
 
 RUN groupadd -r appgroup && useradd -r -g appgroup appuser
 
+# libssl3 CVE-2026-84782: zaktualizuj pakiet systemowy, niezależnie od warstwy bazowej w cache.
+RUN apt-get update && apt-get upgrade -y libssl3 && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # Warstwy wklejane w kolejności od najstabilniejszej do najczęściej zmienianej,
