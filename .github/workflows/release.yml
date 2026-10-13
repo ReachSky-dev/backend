@@ -32,7 +32,7 @@ jobs:
           cache-to:   type=gha,mode=max
 
       - name: Scan with Trivy — gate HIGH and CRITICAL
-        uses: aquasecurity/trivy-action@0.36.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ${{ vars.DOCKERHUB_USERNAME }}/reachsky-backend:${{ github.sha }}
           format: table
