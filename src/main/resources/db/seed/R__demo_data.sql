@@ -4,8 +4,8 @@
 --
 -- UUID v7 layout used here (RFC 9562):
 --   0193a41c-0000 = timestamp ~2024-12-19 (fixed for stability)
---   7[0-5]xx      = version 7 + group discriminator
---                   0=profiles, 1=subjects, 2=listings, 3=auctions, 4=bids, 5=proxy_bids
+--   7[0-6]xx      = version 7 + group discriminator
+--                   0=profiles, 1=subjects, 2=listings, 3=auctions, 4=bids, 5=proxy_bids, 6=orders
 --   8xxx          = variant 10xx + sequential counter
 --   000000000001  = sequential tail
 
@@ -13,6 +13,7 @@
 -- Cascade-delete everything referencing seed listings to satisfy FK constraints.
 
 DELETE FROM orders WHERE auction_id IN (SELECT id FROM auctions WHERE listing_id IN (
+    '0193a41c-0000-7002-8012-000000000012',
     '0193a41c-0000-7002-8001-000000000001',
     '0193a41c-0000-7002-8002-000000000002',
     '0193a41c-0000-7002-8003-000000000003',
@@ -26,6 +27,7 @@ DELETE FROM orders WHERE auction_id IN (SELECT id FROM auctions WHERE listing_id
     '0193a41c-0000-7002-8011-000000000011'
 ));
 DELETE FROM proxy_bids WHERE auction_id IN (SELECT id FROM auctions WHERE listing_id IN (
+    '0193a41c-0000-7002-8012-000000000012',
     '0193a41c-0000-7002-8001-000000000001',
     '0193a41c-0000-7002-8002-000000000002',
     '0193a41c-0000-7002-8003-000000000003',
@@ -39,6 +41,7 @@ DELETE FROM proxy_bids WHERE auction_id IN (SELECT id FROM auctions WHERE listin
     '0193a41c-0000-7002-8011-000000000011'
 ));
 DELETE FROM bids WHERE auction_id IN (SELECT id FROM auctions WHERE listing_id IN (
+    '0193a41c-0000-7002-8012-000000000012',
     '0193a41c-0000-7002-8001-000000000001',
     '0193a41c-0000-7002-8002-000000000002',
     '0193a41c-0000-7002-8003-000000000003',
@@ -52,6 +55,7 @@ DELETE FROM bids WHERE auction_id IN (SELECT id FROM auctions WHERE listing_id I
     '0193a41c-0000-7002-8011-000000000011'
 ));
 DELETE FROM auctions WHERE listing_id IN (
+    '0193a41c-0000-7002-8012-000000000012',
     '0193a41c-0000-7002-8001-000000000001',
     '0193a41c-0000-7002-8002-000000000002',
     '0193a41c-0000-7002-8003-000000000003',
@@ -65,6 +69,7 @@ DELETE FROM auctions WHERE listing_id IN (
     '0193a41c-0000-7002-8011-000000000011'
 );
 DELETE FROM listings WHERE id IN (
+    '0193a41c-0000-7002-8012-000000000012',
     '0193a41c-0000-7002-8001-000000000001',
     '0193a41c-0000-7002-8002-000000000002',
     '0193a41c-0000-7002-8003-000000000003',
@@ -325,3 +330,71 @@ INSERT INTO proxy_bids (id, auction_id, bidder_id, max_amount, currency, created
      '0193a41c-0000-7001-8002-000000000002',
      75000, 'PLN',
      now() - interval '50 minutes');
+
+-- ── listing — SOLD ────────────────────────────────────────────────────────────
+-- Completed auction: listing sold, auction SOLD, order CONFIRMED.
+-- Demonstrates the full end-state visible in the UI.
+
+INSERT INTO listings (id, seller_id, title, description, window_starts_at, window_ends_at, capacity, status) VALUES
+    ('0193a41c-0000-7002-8012-000000000012',
+     '0193a41c-0000-7001-8001-000000000001',
+     'Glamping pod — Roztocze',
+     'Wooden pod in the Roztocze nature reserve. Stars visible through the roof window.',
+     now() - interval '5 days', now() - interval '2 days', 2, 'SOLD');
+
+-- ── auction — SOLD ────────────────────────────────────────────────────────────
+-- English auction: ran 3 days ago, closed 2 days ago. Three bids, won at 480 PLN.
+-- winner_id = Demo Buyer subject. current_price_amount = winning bid amount.
+
+INSERT INTO auctions (id, listing_id, seller_id, type, status,
+                      starts_at, ends_at,
+                      start_price_amount, start_price_currency,
+                      current_price_amount, current_price_currency,
+                      min_increment_amount, min_increment_currency,
+                      reserve_price_amount, reserve_price_currency,
+                      highest_bidder_id, winner_id, bid_count)
+VALUES
+    ('0193a41c-0000-7003-8010-000000000010',
+     '0193a41c-0000-7002-8012-000000000012',
+     '0193a41c-0000-7001-8001-000000000001',
+     'ENGLISH', 'SOLD',
+     now() - interval '3 days', now() - interval '2 days',
+     40000, 'PLN', 48000, 'PLN', 2000, 'PLN', 35000, 'PLN',
+     '0193a41c-0000-7001-8002-000000000002',
+     '0193a41c-0000-7001-8002-000000000002',
+     3);
+
+-- ── bids — SOLD auction ───────────────────────────────────────────────────────
+
+INSERT INTO bids (id, auction_id, bidder_id, amount, currency, sequence, placed_at, idempotency_key) VALUES
+    ('0193a41c-0000-7004-8005-000000000005',
+     '0193a41c-0000-7003-8010-000000000010',
+     '0193a41c-0000-7001-8002-000000000002',
+     40000, 'PLN', 1,
+     now() - interval '3 days',
+     'seed-bid-roztocze-1'),
+
+    ('0193a41c-0000-7004-8006-000000000006',
+     '0193a41c-0000-7003-8010-000000000010',
+     '0193a41c-0000-7001-8003-000000000003',
+     44000, 'PLN', 2,
+     now() - interval '2 days 18 hours',
+     'seed-bid-roztocze-2'),
+
+    ('0193a41c-0000-7004-8007-000000000007',
+     '0193a41c-0000-7003-8010-000000000010',
+     '0193a41c-0000-7001-8002-000000000002',
+     48000, 'PLN', 3,
+     now() - interval '2 days 6 hours',
+     'seed-bid-roztocze-3');
+
+-- ── order — CONFIRMED ─────────────────────────────────────────────────────────
+-- payment_deadline: buyer had 48 h from auction close; already paid.
+
+INSERT INTO orders (id, auction_id, buyer_id, amount, currency, status, payment_deadline, created_at) VALUES
+    ('0193a41c-0000-7006-8001-000000000001',
+     '0193a41c-0000-7003-8010-000000000010',
+     '0193a41c-0000-7001-8002-000000000002',
+     48000, 'PLN', 'CONFIRMED',
+     now() - interval '1 day',
+     now() - interval '2 days');
