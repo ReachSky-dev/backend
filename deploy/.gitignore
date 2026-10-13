@@ -1,8 +1,0 @@
-# vault.yml jest gitignorowany jako zabezpieczenie przed przypadkowym commitem
-# niezaszyfrowanego pliku. Po zaszyfrowaniu dodaj siłą:
-#   git add --force group_vars/{env}/vault.yml
-group_vars/prod/vault.yml
-group_vars/demo/vault.yml
-
-# inventory.yml jest commitowany — ansible_host pochodzi z vault_ansible_host.
-# inventory.local.yml (localhost, self-hosted runner) jest zawsze commitowany.
