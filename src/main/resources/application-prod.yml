@@ -1,0 +1,7 @@
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Brak domyślnej — aplikacja nie startuje bez OIDC_ISSUER_URI na produkcji.
+          issuer-uri: ${OIDC_ISSUER_URI}
